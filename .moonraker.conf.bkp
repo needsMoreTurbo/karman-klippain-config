@@ -1,0 +1,119 @@
+[server]
+host = 0.0.0.0
+port = 7125
+klippy_uds_address = {data_path}/comms/klippy.sock
+max_upload_size = 1024
+
+[machine]
+provider = systemd_dbus
+
+[data_store]
+temperature_store_size = 1200
+gcode_store_size = 1000
+
+[authorization]
+force_logins = False
+cors_domains = 
+	*.local
+	*.lan
+	*://app.fluidd.xyz
+	*://dev-app.fluidd.xyz
+	*://my.mainsail.xyz
+trusted_clients = 
+	10.0.0.0/8
+	127.0.0.0/8
+	169.254.0.0/16
+	172.16.0.0/12
+	192.168.0.0/16
+	FE80::/10
+	::1/128
+
+[history]
+
+[octoprint_compat]
+
+[update_manager]
+enable_auto_refresh = True
+
+[update_manager Klippain]
+type = git_repo
+path = ~/klippain_config
+origin = https://github.com/Frix-x/klippain.git
+primary_branch = main
+managed_services = moonraker klipper
+install_script = install.sh
+
+[file_manager]
+enable_object_processing = True
+
+[update_manager client mainsail]
+type = web
+repo = mainsail-crew/mainsail
+path = ~/mainsail
+
+[update_manager klipper_tmc_autotune]
+type = git_repo
+channel = dev
+path = ~/klipper_tmc_autotune
+origin = https://github.com/andrewmcgr/klipper_tmc_autotune.git
+managed_services = klipper
+primary_branch = main
+install_script = install.sh
+
+[update_manager Klippain-ShakeTune]
+type = git_repo
+origin = https://github.com/Frix-x/klippain-shaketune.git
+path = ~/klippain_shaketune
+virtualenv = /home/ernst/klippy-env
+requirements = requirements.txt
+system_dependencies = system-dependencies.json
+primary_branch = main
+managed_services = klipper
+
+[update_manager octoapp]
+type = git_repo
+channel = beta
+primary_branch = release
+path = /home/ernst/octoapp
+origin = https://github.com/crysxd/OctoApp-Plugin.git
+env = /home/ernst/octoapp-env/bin/python
+requirements = requirements.txt
+install_script = install.sh
+managed_services = 
+	octoapp
+
+[announcements]
+subscriptions = 
+	octoapp.
+
+[update_manager beacon]
+type = git_repo
+channel = dev
+path = ~/beacon_klipper
+origin = https://github.com/beacon3d/beacon_klipper.git
+env = ~/klippy-env/bin/python
+requirements = requirements.txt
+install_script = install.sh
+is_system_service = False
+managed_services = klipper
+info_tags = 
+	desc=Beacon Probe
+
+[update_manager sonar]
+type = git_repo
+path = ~/sonar
+origin = https://github.com/mainsail-crew/sonar.git
+primary_branch = main
+managed_services = sonar
+system_dependencies = resources/system-dependencies.json
+
+[update_manager mobileraker]
+install_script = /home/ernst/mobileraker_companion/scripts/install.sh
+requirements = /home/ernst/mobileraker_companion/scripts/mobileraker-requirements.txt
+env = /home/ernst/mobileraker-env/bin/python
+managed_services = mobileraker
+primary_branch = main
+origin = https://github.com/Clon1998/mobileraker_companion.git
+path = /home/ernst/mobileraker_companion
+type = git_repo
+

@@ -1,0 +1,179 @@
+############################################# \
+######## USER CONFIG OVERRIDES FILE #########  + --> This will help you personalize my config to your printer :)
+############################################# /
+
+# This file is yours! Feel free to edit it in order to include all the needed
+# things to adapt my generic config to your machine. This file will not be erased
+# when updating the config using moonraker and it will be kept as you've set it.
+# You can change every section of the config. You can also add some new custom macros, etc...
+# The corresponding documentation can be found in: docs > overrides.md
+
+### Also, keep in mind: if you use a multi-MCU config such as the old school double SKRs or a CANbus toolhead
+### board, you will need to specify which components are connected to which board in your own mcu.cfg file!
+### Example: if something is connected to the toolhead MCU, you should use "config_pin: toolhead:PIN_NAME".
+
+#> Main control MCUs are called "mcu" (and "secondary" when using a double MCU configuration)
+#> Toolhead CANboard MCUs are called "toolhead"
+#> MMU/ERCF MCUs are called "mmu" 
+
+# ------------------------------------------------------------------------------------------
+
+[include autotune_tmc.cfg]
+
+
+#-------------------------#
+#   START_PRINT SEQUENCE  #
+#-------------------------#
+
+## The START_PRINT sequence is modular and fully customizable. A default sequence is auto-populated based on
+## your probe choice (TAP, Dockable, Inductive). If you still want to change it, uncomment the next 3 lines
+## to define `variable_startprint_actions`. You can use any number of actions, and you can duplicate actions if needed.
+## Available actions: "bed_soak", "extruder_preheating", "chamber_soak", "extruder_heating", "tilt_calib",
+##                    "z_offset", "contact_z_home", "contact_auto_calibrate", "beacon_calib", "bedmesh",
+##                    "purge", "clean", "primeline"
+## You can add custom actions with a matching `_START_PRINT_ACTION_<NAME>` macro. Example:
+##   variable_startprint_actions: "bed_soak", "my_start_action", "bedmesh", "primeline"
+## Cartographer Touch should run contact_z_home after tilt_calib and before bedmesh:
+##   variable_startprint_actions: "bed_soak", "extruder_preheating", "chamber_soak", "tilt_calib", "contact_z_home", "bedmesh", "primeline"
+##   [gcode_macro _START_PRINT_ACTION_MY_START_ACTION]
+##   gcode:
+##     ## Your custom START_PRINT G-code here
+## Legacy START_PRINT slots `custom1` through `custom9` are also supported and call
+## `_MODULE_CUSTOM1` through `_MODULE_CUSTOM9`.
+##
+# [gcode_macro _USER_VARIABLES]
+# variable_startprint_actions: "action1", "action2", ...
+# gcode: # do not remove this line
+
+## The END_PRINT sequence is modular and fully customizable. A default sequence is auto-populated, but if you
+## still want to change it, uncomment the next 3 lines to define `variable_endprint_actions`.
+## You can use any number of actions, and you can duplicate actions if needed.
+## Available actions: "retract_filament", "turn_off_heaters", "turn_off_fans", "turn_off_motors",
+##                    "reset_limits"
+## You can add custom actions with a matching `_END_PRINT_ACTION_<NAME>` macro. Example:
+##   variable_endprint_actions: "retract_filament", "my_end_action", "turn_off_heaters"
+##   [gcode_macro _END_PRINT_ACTION_MY_END_ACTION]
+##   gcode:
+##     ## Your custom END_PRINT G-code here
+##
+# [gcode_macro _USER_VARIABLES]
+# variable_endprint_actions: "action1", "action2", ...
+# gcode: # do not remove this line
+
+#-------------------------#
+#   EXTRUDER/BED PIDs     #
+#-------------------------#
+
+## Here is an example of some overrides for the PIDs. I put them here as almost everyone will use them,
+## so just uncomment the following lines and change the values according to your own machine
+[extruder]
+control: pid
+pid_kp: 36.196
+pid_ki: 10.492
+pid_kd: 31.219
+
+[heater_bed]
+control: pid
+pid_kp: 54.268
+pid_ki: 1.391
+pid_kd: 529.111
+
+
+#-------------------------#
+#   Z MOTORS DIRECTION    #
+#-------------------------#
+
+## Here is an example of some overrides for the motor directions as it's a pretty common one. If you need
+## to invert the Z1 or Z3 motor direction on your machine, just uncomment the following lines.
+# [stepper_z1]
+# dir_pin: !Z1_DIR
+
+# [stepper_z3]
+# dir_pin: !Z3_DIR
+
+
+#-------------------------#
+#   Probe Offsets         #
+#-------------------------#
+
+## Here is an example of some overrides for bed probes. These frequently have calibrated offsets for xyz,
+## and many will need them during setup. If you need to set these, just uncomment the following lines.
+# [probe]
+# x_offset: -1.85
+# y_offset: 29.3
+# z_offset: 12.6
+
+#-------------------------#
+#   Part Fan Overrides    #
+#-------------------------#
+
+## The following are changes required for the unique wiring of the honeybadger 3 wire part fan, where 
+## the 3rd wire is a PWM signal and not a tachometer signal.
+[fan]
+pin: !toolhead:PART_FAN
+cycle_time: 0.00004
+hardware_pwm: False
+kick_start_time: 0.5
+off_below: 0.14
+
+#-------------------------#
+#   Caselight Overrides   #
+#-------------------------#
+
+[output_pin caselight]
+cycle_time: 0.00025 ## Setting to high frequency PWM to avoid flickering on the caselight
+value: 100
+shutdown_value: 0
+
+[beacon]
+serial: /dev/serial/by-id/usb-Beacon_Beacon_RevH_670FCCD84E5737374D202020FF061406-if00
+x_offset: 0
+y_offset: 18
+mesh_main_direction: x
+mesh_runs: 2
+home_xy_position: 175, 175
+# contact_max_hotend_temperature: 275
+
+[extruder]
+sensor_type: PT1000
+rotation_distance: 22.905740611
+max_temp: 350
+pressure_advance: 0.035
+min_extrude_temp: 170
+
+[heater_bed]
+sensor_type: ATC Semitec 104NT-4-R025H42G
+max_power: 0.8
+sensor_pin: PA2
+
+[stepper_x]
+dir_pin: !X_DIR
+
+[stepper_y]
+dir_pin: !Y_DIR
+
+[stepper_z]
+dir_pin: !Z_DIR
+
+[stepper_z2]
+dir_pin: !Z2_DIR
+
+[controller_fan controller_fan]
+fan_speed: 0.6
+
+[stepper_x]
+position_max: 348
+position_endstop: 348
+
+[stepper_y]
+position_max: 357
+position_endstop: 357
+
+# ------- Bed Fans -------
+[include bed_fans.cfg]
+
+# bed_fans_init runs before bed_soak to set initial fan speed as bed begins heating
+# bed_fans_monitor runs after primeline to start the 10s monitor loop once printing begins
+[gcode_macro _USER_VARIABLES]
+variable_startprint_actions: "bed_fans_init", "bed_soak", "extruder_preheating", "chamber_soak", "clean", "contact_auto_calibrate", "tilt_calib", "bedmesh", "contact_z_home", "extruder_heating", "purge", "clean", "primeline", "bed_fans_monitor"
+gcode:
