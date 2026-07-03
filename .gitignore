@@ -1,3 +1,5 @@
 .theme/
 .moonraker.uuid
 *.csv
+save_variables.cfg
+.venv/
