@@ -84,7 +84,7 @@ The "floating" mode (`_FLOATING_FAN`, `bed_fans.cfg:187`) nudges speed ±1 % but
 Applied every tick:
 1. **Never high while heating.** HEATING uses `heating_speed` only. Since the same loop governs standby, this eliminates the preheat crash (§1.1) *and* the in-print soak version of it.
 2. **Ramp only after settle.** Begin ramping only once the bed has stayed within `target_tolerance` of target continuously for `settle_time`. This avoids ramping during the initial overshoot/settle wobble.
-3. **Drop-guard.** If at any point in RAMP/HOLD `bed_temp < target − ramp_drop_guard`, step the fan **down** by `ramp_step` (floored at `heating_speed`) and **freeze** the ramp until the bed recovers to within tolerance. This is what guarantees the fans can never outrun the heater and re-trip `verify_heater` (§1.3).
+3. **Drop-guard.** Once the bed has settled, a `reached` latch keeps the controller in RAMP/HOLD across a **reheat band** (`target − reheat_band` … `target`) rather than flipping back to `HEATING` on the first small dip. Within that band, if `bed_temp < target − ramp_drop_guard`, step the fan **down** by `ramp_step` (floored at `heating_speed`) and **freeze** the ramp until the bed recovers. This lets the fan settle at an equilibrium the heater can sustain — guaranteeing the fans never outrun the heater and re-trip `verify_heater` (§1.3). Only a *large* drop (`bed_temp < target − reheat_band`) is treated as a genuine re-heat: the latch clears and the machine returns to `HEATING` (fan → `heating_speed`, ramp restarts). Note `reheat_band` must exceed `ramp_drop_guard`, otherwise the drop-guard band is empty and unreachable.
 4. **Chamber cap.** If `chamber ≥ chamber_max`, step the fan down. Allow stepping back up only once `chamber < chamber_resume` (hysteresis) **and** the bed is healthy. The chamber never forces the fan *up* — only down.
 
 ### 3.4 Manual override (§1.2 fix)
@@ -112,6 +112,7 @@ Klipper reports `fan_generic.speed` as the last commanded value (not a measureme
 | `settle_time` | `30` | seconds at target before the ramp starts |
 | `ramp_step` | `0.03` | speed increment/decrement per tick |
 | `ramp_drop_guard` | `3.0` | °C below target that forces a step-down + ramp freeze |
+| `reheat_band` | `8.0` | °C below target before the ramp is abandoned and the bed fully re-heats (must be `> ramp_drop_guard`) |
 | `chamber_max` | `55` | chamber cap — fans step down above this |
 | `chamber_resume` | `50` | fans may step back up below this (hysteresis) |
 | `cool` | `True` | run fans low post-print to assist bed cool-down |
@@ -145,7 +146,13 @@ Always change one variable at a time and re-test a preheat.
 
 ## 5. Rollout & testing
 
-This repo is a local clone of the Pi's `~/printer_data/config`. Workflow: edit here → commit/push → pull on the printer → `RESTART`. `ernst@192.168.1.240` is for read-only inspection only. Klipper macros can't be unit-tested, so validate on the machine:
+This repo is a local clone of the Pi's `~/printer_data/config`. Workflow: edit here → commit/push → pull on the printer → `RESTART`. `ernst@192.168.1.240` is for read-only inspection only.
+
+**Offline pre-check (run before every push):** `tools/render_macro.py` renders the `_BED_FAN_TICK` template through Klipper's exact Jinja2 environment and asserts the state/speed/duration across the whole state machine:
+```bash
+uv run tools/render_macro.py --selftest
+```
+This catches template syntax errors and logic regressions (it already caught an unreachable drop-guard). It is **not** a substitute for on-machine testing — it can't model real thermodynamics — so still validate on the printer:
 
 1. **Config loads** — `RESTART`; no errors; `BED_FANS_STATUS` responds.
 2. **Preheat (fixes §1.1)** — from cold, set bed 105 °C in standby. Fans hold `heating_speed` for the entire climb, never jumping high; bed rises smoothly with **no** `not heating at expected rate` fault.
