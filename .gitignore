@@ -1,5 +1,6 @@
 .theme/
 .moonraker.uuid
 *.csv
+*.bkp
 save_variables.cfg
 .venv/
