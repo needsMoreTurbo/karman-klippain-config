@@ -94,6 +94,7 @@ def build_printer(
     manual_latch=False,
     manual_speed=0.0,
     state="OFF",
+    prev_state="printing",
 ) -> dict:
     """Build a mock `printer` object for _BED_FAN_TICK from scenario knobs."""
     return {
@@ -124,6 +125,7 @@ def build_printer(
             "manual_latch": manual_latch,
             "manual_speed": manual_speed,
             "state": state,
+            "prev_state": prev_state,
         },
     }
 
@@ -143,6 +145,10 @@ SCENARIOS = [
     ("chamber cap",            dict(ps="printing",target=105.0, bed_t=105.0,chamber=56.0, actual=0.50, commanded=0.50, settle_ticks=8), ("CHAMBER-CAP", 0.47, 4,  True)),
     ("chamber hysteresis band",dict(ps="printing",target=105.0, bed_t=105.0,chamber=52.0, actual=0.50, commanded=0.50, settle_ticks=8), ("RAMP-HOLD",   0.50, 4,  True)),
     ("manual latch held",      dict(ps="printing",target=105.0, bed_t=105.0,chamber=30.0, actual=0.40, commanded=0.40, manual_latch=True, manual_speed=0.40), ("MANUAL", None, 4, False)),
+    ("manual held in cooldown", dict(ps="complete",prev_state="complete", target=0.0, bed_t=90.0, chamber=45.0, actual=0.50, commanded=0.50, manual_latch=True, manual_speed=0.50), ("MANUAL", None, 4, False)),
+    ("print-end clears latch",  dict(ps="complete",prev_state="printing", target=0.0, bed_t=90.0, chamber=45.0, actual=0.50, commanded=0.50, manual_latch=True, manual_speed=0.50), ("COOL",   0.10, 4, True)),
+    ("new print drops latch",   dict(ps="printing",prev_state="complete", target=105.0,bed_t=60.0, chamber=30.0, actual=0.50, commanded=0.50, manual_latch=True, manual_speed=0.50), ("HEATING",0.10, 4, True)),
+    ("resume keeps latch",      dict(ps="printing",prev_state="paused",   target=105.0,bed_t=105.0,chamber=30.0, actual=0.50, commanded=0.50, manual_latch=True, manual_speed=0.50), ("MANUAL", None, 4, False)),
     ("slider moved -> latch",  dict(ps="printing",target=105.0, bed_t=105.0,chamber=30.0, actual=0.30, commanded=0.10), ("MANUAL",      None, 4,  False)),
     ("post-print cooling",     dict(ps="complete",target=0.0,   bed_t=90.0, chamber=45.0, actual=0.10, commanded=0.10), ("COOL",        0.10, 4,  True)),
     ("post-print cold -> off", dict(ps="complete",target=0.0,   bed_t=40.0, chamber=35.0, actual=0.0,  commanded=0.0),  ("OFF",         0.0,  30, True)),

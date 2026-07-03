@@ -50,7 +50,7 @@ The "floating" mode (`_FLOATING_FAN`, `bed_fans.cfg:187`) nudges speed ±1 % but
 - **One loop, one source of truth.** A single always-on `delayed_gcode` (`_BED_FAN_TICK`) governs both standby preheat and printing. No second divergent standby loop.
 - **Bed-gated.** Fan behavior is driven by `heater_bed.target`/`temperature`; the chamber is only a cap.
 - **Fail toward the bed.** Every ambiguous condition resolves to *less* airflow, protecting the heater.
-- **Manual override is explicit and persistent.** A latch holds your speed until you clear it or the print ends — the loop never silently overrides you.
+- **Manual override is explicit and persistent.** A latch holds your speed until you clear it, a new print starts, or (for an override set during a print) the print ends — the loop never silently overrides you. It works in every state, including post-print cooldown.
 - **Only engages when it matters.** Below `activation_temp` (i.e. PLA/PET), the system stays fully off.
 
 ### 3.2 State machine
@@ -64,7 +64,7 @@ The "floating" mode (`_FLOATING_FAN`, `bed_fans.cfg:187`) nudges speed ±1 % but
 | **HEATING** | demand active **and** `bed_temp < target − target_tolerance` | `heating_speed`; reset settle + ramp progress | `tick_interval` |
 | **RAMP** | at target (within `target_tolerance`), held ≥ `settle_time` | `+ramp_step` toward `high_speed` | `tick_interval` |
 | **HOLD** | ramp reached `high_speed` | hold `high_speed` (subject to caps) | `tick_interval` |
-| **COOL** | `print_stats.state` ∈ {complete, cancelled, error} | `heating_speed` until `chamber < cool_temp`, then OFF; clears latch | `tick_interval` / slow |
+| **COOL** | `print_stats.state` ∈ {complete, cancelled, error}, no manual latch | `heating_speed` until `chamber < cool_temp`, then OFF; clears a mid-print latch on the print-end transition | `tick_interval` / slow |
 
 "Demand active" = `heater_bed.target ≥ activation_temp`. Because the same loop runs in standby, **manual preheat gets the identical HEATING→RAMP→HOLD treatment** — gentle while climbing, ramp after target.
 
@@ -94,7 +94,7 @@ A single latch (`manual_latch` + `manual_speed`) makes manual control persistent
 - **`BED_FANS_AUTO`** — clear the latch, resume automatic control.
 - **`BED_FANS_OFF`** — latch at `0` (hard off).
 - **Mainsail slider also works.** The loop records `last_commanded_speed`. If the actual `fan_generic Bed_Fans.speed` differs from it by more than ε (~0.02) between ticks, *you* moved the slider → the loop auto-latches to that speed and stops touching it. This is the robust version of the old `_BED_FAN_HELPER` intent, without the `<50 %`/`≥50 %`/`0-disallowed` quirks.
-- **The latch always clears at print end** (COOL state), so the next print starts in full auto.
+- **Latch lifetime.** A latch set *during* a print is released once, on the **print-end transition** (`just_ended`), so cooldown and the next print run in auto. A latch set *after* a print (during cooldown) **wins over the COOL state and holds** — so `BED_FANS_MANUAL`/`BED_FANS_OFF` work post-print, which they previously didn't. Any lingering latch is also dropped at the **next print start** (`just_started`), so a stale manual speed can never leak into a new print's heat-up and re-cause the heater stall. This requires the loop to remember the previous `print_stats.state` in `prev_state` and to check the manual/slider branches **before** the ongoing-COOL branch.
 
 Klipper reports `fan_generic.speed` as the last commanded value (not a measurement), so slider detection is exact aside from the ε guard for kick-start/`off_below` rounding.
 
@@ -157,7 +157,7 @@ This catches template syntax errors and logic regressions (it already caught an 
 1. **Config loads** — `RESTART`; no errors; `BED_FANS_STATUS` responds.
 2. **Preheat (fixes §1.1)** — from cold, set bed 105 °C in standby. Fans hold `heating_speed` for the entire climb, never jumping high; bed rises smoothly with **no** `not heating at expected rate` fault.
 3. **Ramp (fixes §1.3)** — at 105 °C, fans wait `settle_time`, then ramp in `ramp_step` increments to `high_speed`; bed stays within `ramp_drop_guard`. Force a dip (brief manual blast) and confirm the loop steps down + freezes the ramp.
-4. **Manual override (fixes §1.2)** — mid-print, drag the Mainsail slider → auto-latch, loop stops clobbering; `BED_FANS_MANUAL SPEED=40` holds; `BED_FANS_AUTO` resumes; latch clears at print end.
+4. **Manual override (fixes §1.2)** — mid-print, drag the Mainsail slider → auto-latch, loop stops clobbering; `BED_FANS_MANUAL SPEED=40` holds; `BED_FANS_AUTO` resumes. Also verify `BED_FANS_MANUAL` **during cooldown** holds (doesn't get reclaimed by COOL), a mid-print latch clears when the print ends, and a latch left on during cooldown is dropped when the next print starts.
 5. **Chamber cap** — fans step down when `Chamber ≥ chamber_max`, recover below `chamber_resume`.
 6. **Post-print** — end/cancel → COOL runs `heating_speed` to `cool_temp`, then OFF; latch cleared.
 7. **PLA regression** — bed 60 °C (< `activation_temp`) → fans stay OFF throughout.
