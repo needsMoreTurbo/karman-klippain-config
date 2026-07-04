@@ -1,0 +1,23 @@
+# go2rtc — camera streaming for Karman's Logitech C920
+# See docs/camera_streaming.md §5. Deployed as a standalone systemd service
+# (NOT crowsnest — [cam 1] is commented out in crowsnest.conf so this owns the
+# camera). Lives in printer_data/config so it's git-tracked and editable from
+# Mainsail's file manager.
+#
+# NOTE: focus lock is NOT set here — go2rtc/ffmpeg can't set V4L2 focus
+# controls. It's applied by the go2rtc.service ExecStartPre (v4l2-ctl). See the
+# unit file in docs/camera_streaming.md §5.
+
+streams:
+  # #video=copy passes the C920's HARDWARE H.264 straight through: no transcode,
+  # near-zero CPU, and H.264 is exactly what browsers play over WebRTC.
+  printer:
+    - ffmpeg:device?video=/dev/v4l/by-id/usb-046d_HD_Pro_Webcam_C920_E98816AF-video-index0&input_format=h264&video_size=1280x720&framerate=30#video=copy
+
+api:
+  listen: ":1984"        # go2rtc dashboard + Mainsail WebRTC endpoint
+
+webrtc:
+  listen: ":8555"        # WebRTC media (TCP/UDP)
+  candidates:
+    - 192.168.1.240:8555 # LAN address so the browser knows where to connect

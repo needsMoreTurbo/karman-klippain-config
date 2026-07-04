@@ -1,6 +1,6 @@
 # Camera Streaming — Setup & Troubleshooting
 
-**Machine:** Karman (Voron 2.4, Klippain) · **Camera:** Logitech C920 (USB UVC), externally mounted looking into the enclosure · **Host:** Raspberry Pi · **Stack:** Crowsnest → camera-streamer / go2rtc → Mainsail/Fluidd.
+**Machine:** Karman (Voron 2.4, Klippain) · **Camera:** Logitech C920 (USB UVC), externally mounted looking into the enclosure · **Host:** Raspberry Pi (aarch64) · **Deployed stack:** standalone **go2rtc** (hardware H.264 → WebRTC) → Mainsail. Crowsnest is installed but its `[cam 1]` is commented out (§5).
 
 This document captures how to get low-latency, sharp, reliable video off the C920, and how to diagnose the lag/focus problems seen on Karman. It splits the problem into two independent layers — **frame *production* at the camera** and **frame *transport* to the browser** — because fixing one does nothing for the other, and both were degraded here.
 
@@ -19,8 +19,8 @@ This document captures how to get low-latency, sharp, reliable video off the C92
 
 | Layer | What it controls | Symptoms when broken | Fixes |
 |---|---|---|---|
-| **Production** (the camera) | How many usable frames the C920 emits, and whether they're sharp | Low framerate, choppiness, soft/hunting focus — *with low CPU* | Lock exposure, framerate, focus (§3) |
-| **Transport** (the pipeline) | How those frames reach the browser and at what latency | High latency, per-browser failures, CPU multiplication across viewers | Hardware H.264 + WebRTC via go2rtc (§4, §5) |
+| **Production** (the camera) | How many usable frames the C920 emits, and whether they're sharp | Low framerate, choppiness, soft/hunting focus — *with low CPU* | Lock focus, pin a compressed format, light the scene (§3) |
+| **Transport** (the pipeline) | How those frames reach the browser and at what latency | High latency, per-browser failures, CPU multiplication across viewers | Hardware H.264 + WebRTC via camera-streamer / go2rtc (§4, §5) |
 
 **Key diagnostic:** "laggy **but low CPU**" rules out software encoding as the cause. The C920 has hardware MJPEG *and* H.264 encoders, so an idle CPU means frames are being produced cheaply — the problem is either that too **few** frames are produced (production) or that they're delivered over a **slow transport**. Both applied here.
 
@@ -28,7 +28,7 @@ This document captures how to get low-latency, sharp, reliable video off the C92
 
 ## 3. Camera-level fixes (frame production)
 
-The root cause of both the lag *and* the focus hunting is **"auto" everything on a camera pointed at a fixed scene**. The bed is always the same distance and the lighting is roughly constant, so autofocus and auto-exposure only add instability. Lock them.
+A common root cause of both the lag *and* the focus hunting is **"auto" everything on a camera pointed at a fixed scene**. The bed is always the same distance, so autofocus is pure downside — **lock it**. Exposure is a judgement call: on Karman it's left on **auto** and the fix is to light the scene (see §3.1), rather than pinning a value that goes wrong when room light changes.
 
 ### 3.1 Auto-exposure is silently dropping framerate (primary lag cause)
 In dim light the C920 lengthens exposure by **cutting frame rate** — 30fps can collapse to ~5–7fps. Fewer frames = choppy video **and** low CPU, which matches the symptom exactly. An external mount often sees less light than expected.
@@ -69,20 +69,12 @@ Consequences:
 - **Never let capture negotiate YUYV.** Raw is bandwidth-starved on USB2 and caps at **5fps @1080p / 10fps @720p** *regardless of lighting* — an independent "laggy, low CPU" cause. Moving to `camera-streamer`/go2rtc with H264 avoids raw entirely; `ustreamer` should be pinned to MJPG.
 - A `max_fps:` lower than 30 (Karman was at 15) is a **self-imposed** cap — the hardware does 30 in both compressed formats.
 
-### 3.5 Persisting the settings — *where they go*
-`v4l2-ctl` run from a shell resets on replug/reboot. The permanent home for these is the **`v4l2ctl:` parameter inside the camera's section of `crowsnest.conf`** (repo root, tracked). Karman's camera is the `[cam 1]` section; a commented `#v4l2ctl:` placeholder already exists there — uncomment it and append the settings comma-separated:
-```ini
-[cam 1]
-mode: camera-streamer                   # ustreamer cannot do WebRTC — see §5.2
-device: /dev/v4l/by-id/usb-046d_HD_Pro_Webcam_C920_...-index0   # stable path; NOT /dev/video0
-resolution: 1280x720
-max_fps: 30
-v4l2ctl: focus_automatic_continuous=0,focus_absolute=30   # focus locked; exposure left on auto (see §3.1)
-```
-Notes:
-- **`device:`** — use the `/dev/v4l/by-id/...` path (find via `ls /dev/v4l/by-id/`), not `/dev/video0`, which can shuffle across reboots.
-- Control **names vary by kernel/firmware**. Run `v4l2-ctl -d /dev/video0 --list-ctrls` first and use the exact names and value ranges it reports.
-- **Applying it:** edit here → commit/push → `GIT_PULL` on the Pi, then **`sudo systemctl restart crowsnest`**. Crowsnest is a separate service — `FIRMWARE_RESTART` / `GIT_PULL` alone will **not** reload camera config.
+### 3.5 Where the settings live (device path, focus lock)
+The stable device path and the focus lock are the two camera-level settings that persist. **On Karman these now live in the go2rtc systemd unit (§5.4), not crowsnest** — `crowsnest.conf`'s `[cam 1]` is commented out so go2rtc can own the camera.
+
+- **Device:** `/dev/v4l/by-id/usb-046d_HD_Pro_Webcam_C920_E98816AF-video-index0` — the stable `by-id` path (find via `ls /dev/v4l/by-id/`), not `/dev/video0`, which can shuffle across reboots. `index0` is the video node; `index1` is UVC metadata (not streamable).
+- **Focus lock:** `focus_automatic_continuous=0,focus_absolute=30`. `v4l2-ctl` from a shell resets on replug/reboot, and go2rtc/ffmpeg can't set focus, so it's applied via the unit's `ExecStartPre` (§5.4). `focus_absolute=30` is a **starting value** — tune against the actual scene (~0–250, higher = closer). Control **names vary by kernel/firmware**; run `v4l2-ctl -d <device> --list-ctrls` first.
+- **Historical (crowsnest route):** when crowsnest owned the camera, these went in the `[cam 1]` `v4l2ctl:` line and were applied with `sudo systemctl restart crowsnest`. That block is preserved commented-out in `crowsnest.conf` if you ever revert.
 
 ---
 
@@ -94,27 +86,65 @@ Only **camera-streamer** and **go2rtc** can do H.264→WebRTC passthrough; legac
 
 ---
 
-## 5. Recommended target: go2rtc
+## 5. Deployed transport: standalone go2rtc
 
-`go2rtc` is the most robust path for Karman, and directly addresses the earlier WebRTC browser trouble.
+**This is what Karman runs.** `camera-streamer`'s built-in WebRTC would not play in Chromium, so the camera moved to a **standalone go2rtc** service. Crowsnest is left installed but its `[cam 1]` is commented out (only one process can open `/dev/video0`), so go2rtc owns the camera. Crowsnest 4.2 *bundles* go2rtc, but its native wiring is version-specific; a standalone service is deterministic and drops cleanly into Mainsail.
 
-### 5.1 Why it fits
-1. **Solves browser compatibility by design.** Instead of betting on one transport, go2rtc negotiates a **fallback chain per browser**: WebRTC → WebRTC-over-TCP → MSE → MJPEG/HLS. Chrome/Edge get true WebRTC (~200ms); Firefox/Safari that choke on WebRTC quietly fall back to MSE (~0.5–1s) — still far better than laggy MJPEG. You stop chasing per-browser quirks.
-2. **Hardware H.264 passthrough** → low CPU + low latency (§4).
+### 5.1 Why go2rtc
+1. **Solves browser compatibility by design.** Instead of betting on one transport, go2rtc negotiates a **fallback chain per browser**: WebRTC → WebRTC-over-TCP → MSE → MJPEG/HLS. Chrome/Edge get true WebRTC (~200ms); Firefox/Safari that choke on WebRTC quietly fall back to MSE (~0.5–1s) — still far better than laggy MJPEG. This is the direct fix for "Chromium won't play camera-streamer."
+2. **Hardware H.264 passthrough** (`#video=copy`) → low CPU + low latency (§4).
 3. **One read, many viewers.** go2rtc opens the camera once and restreams to all clients, killing the "every open browser tab spawns its own stream" CPU/USB multiplication — relevant to the resonance-test shutdown (§6).
 
-### 5.2 Integration
-No need to rip anything out: **Crowsnest 4.x bundles go2rtc**, and Mainsail/Fluidd both support a go2rtc/WebRTC camera service type. Enable go2rtc in Crowsnest (or run it standalone), define the C920 stream, then set the camera's service to WebRTC in the UI.
+### 5.2 The config (git-tracked)
+`go2rtc.yaml` lives in the repo root (= `~/printer_data/config/`), so it deploys via `GIT_PULL` and is editable from Mainsail's file manager. The stream uses `#video=copy` to pass the C920's hardware H.264 through untranscoded. See [`go2rtc.yaml`](../go2rtc.yaml).
 
-Rough standalone `go2rtc.yaml`, passing through hardware H.264 with no transcode:
-```yaml
-streams:
-  c920:
-    - exec:ffmpeg -hide_banner -f v4l2 -input_format h264 -video_size 1280x720 -framerate 30 -i /dev/video0 -c:v copy -f rtsp {output}
+### 5.3 Install (Pi, arm64)
+go2rtc uses system `ffmpeg` for V4L2 capture:
+```bash
+sudo apt update && sudo apt install -y ffmpeg
+mkdir -p ~/go2rtc && cd ~/go2rtc
+wget -O go2rtc https://github.com/AlexxIT/go2rtc/releases/latest/download/go2rtc_linux_arm64
+chmod +x go2rtc
+```
+> `uname -m` reports `aarch64` = `arm64` (same thing) → use the `arm64` binary.
+
+### 5.4 systemd service — with the focus lock
+Moving off crowsnest **loses the `v4l2ctl` focus lock** (go2rtc/ffmpeg can't set V4L2 focus controls). It's re-applied here as `ExecStartPre`, which runs `v4l2-ctl` before go2rtc opens the device:
+```ini
+# /etc/systemd/system/go2rtc.service
+[Unit]
+Description=go2rtc
+After=network.target
+
+[Service]
+User=ernst
+ExecStartPre=/usr/bin/v4l2-ctl -d /dev/v4l/by-id/usb-046d_HD_Pro_Webcam_C920_E98816AF-video-index0 --set-ctrl=focus_automatic_continuous=0 --set-ctrl=focus_absolute=30
+ExecStart=/home/ernst/go2rtc/go2rtc -config /home/ernst/printer_data/config/go2rtc.yaml
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now go2rtc
 ```
 
-### 5.3 The caveat that ties the layers together
-go2rtc is a **transport layer, not a camera driver** — it faithfully streams whatever the C920 hands it. If the §3.1 auto-exposure framerate drop is still active, go2rtc will dutifully deliver a smooth **5fps** and it will still feel laggy. **Fix production (§3) *and* transport (§5).** They address different halves.
+### 5.5 Deploy order (device-contention matters)
+Only one process can open `/dev/video0`, so the sequence is strict:
+1. `GIT_PULL` — pulls the commented `crowsnest.conf` + `go2rtc.yaml`.
+2. `sudo systemctl restart crowsnest` — **releases** the camera.
+3. `sudo systemctl enable --now go2rtc` — now it can grab the device.
+
+If go2rtc logs `device or resource busy` (`journalctl -u go2rtc -e`), crowsnest never let go — recheck step 1/2.
+
+### 5.6 Verify, then add to Mainsail
+- Open **`http://192.168.1.240:1984`** (go2rtc dashboard) → `printer` stream → WebRTC link. If it plays in Chromium here, the pipeline works.
+- Mainsail → Settings → **Webcams** → Add: **Service** = `WebRTC (go2rtc)`, **URL** = `http://192.168.1.240:1984/api/ws?src=printer`. `src` must match the stream name in `go2rtc.yaml`.
+- moonraker-timelapse (if used): point its snapshot URL at `http://localhost:1984/api/frame.jpeg?src=printer`.
+
+### 5.7 The caveat that ties the layers together
+go2rtc is a **transport layer, not a camera driver** — it faithfully streams whatever the C920 hands it. If a §3.1 auto-exposure framerate drop is active (dim scene), go2rtc will dutifully deliver a smooth **5fps** and it will still feel laggy. **Fix production (§3) *and* transport (§5).** They address different halves.
 
 ---
 
@@ -144,12 +174,18 @@ crowsnest --version                          # Crowsnest 4.x? (go2rtc bundled)
 
 ## 8. Checklist
 
-- [ ] Lock **focus** (`focus_automatic_continuous=0`, fixed `focus_absolute`).
-- [ ] Leave **exposure on auto**; add light to the scene if framerate drops (lock only as a last resort — see §3.1).
-- [ ] Verify the camera actually produces **30fps** under good lighting.
+Committed to the repo:
+- [x] Comment out `crowsnest.conf` `[cam 1]` so go2rtc can own the camera.
+- [x] Add git-tracked **`go2rtc.yaml`** (720p30, hardware H.264 `#video=copy`).
+- [x] Pin the stable **`/dev/v4l/by-id/...index0`** device path.
+- [x] Leave **exposure on auto** (see §3.1).
+
+Remaining (on the Pi):
+- [ ] Install ffmpeg + **go2rtc arm64** binary (§5.3).
+- [ ] Create **`go2rtc.service`** with the focus-lock `ExecStartPre` (§5.4).
+- [ ] Deploy in order: `GIT_PULL` → `restart crowsnest` → `enable --now go2rtc` (§5.5).
+- [ ] Verify at **`:1984`** it plays in Chromium; confirm it grabbed **H264** (not YUYV).
+- [ ] Add the **WebRTC (go2rtc)** webcam in Mainsail (§5.6).
+- [ ] Tune **`focus_absolute`** for a sharp bed; verify **30fps** under good lighting.
 - [ ] Give the camera its **own USB port**; check `dmesg` for resets.
-- [ ] Consider dropping to **720p** if 1080p is flaky.
-- [ ] Persist v4l2 settings in Crowsnest's **`v4l2ctl:`** line.
-- [ ] Move transport to **go2rtc** with hardware **H.264 passthrough** (`-c copy`).
-- [ ] Test WebRTC in **Chrome**; rely on go2rtc fallback for Firefox/Safari.
 - [ ] **Stop the camera stream before resonance tests.**
