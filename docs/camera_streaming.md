@@ -33,12 +33,14 @@ The root cause of both the lag *and* the focus hunting is **"auto" everything on
 ### 3.1 Auto-exposure is silently dropping framerate (primary lag cause)
 In dim light the C920 lengthens exposure by **cutting frame rate** — 30fps can collapse to ~5–7fps. Fewer frames = choppy video **and** low CPU, which matches the symptom exactly. An external mount often sees less light than expected.
 
-Quick test: brighten the scene; if it smooths out, this is it. Then lock it:
+Quick test: brighten the scene; if it smooths out, this is it. It *can* be locked:
 ```
 v4l2-ctl -d /dev/video0 --set-ctrl=auto_exposure=1            # 1 = manual (name varies; some firmwares use exposure_auto=1)
 v4l2-ctl -d /dev/video0 --set-ctrl=exposure_time_absolute=250
 v4l2-ctl -d /dev/video0 -p 30                                 # force 30 fps
 ```
+
+> **Karman's choice:** exposure is left on **auto** (not locked in `crowsnest.conf`). Locking exposure to a fixed value in a room with changing light makes the image too dark/bright as conditions shift; auto-exposure keeps brightness usable at the cost of framerate in dim light. The preferred fix here is **more light on the scene** (so auto-exposure keeps a high framerate) rather than a hard exposure lock. Revisit only if low framerate persists under good lighting.
 
 ### 3.2 Autofocus hunting (image quality, *not* lag)
 Autofocus does **not** add stream latency and barely touches CPU — so fixing it will not smooth the choppiness. But on a fixed-distance printer cam it's pure downside (hunting/breathing), so set focus once, manually, and lock it forever:
@@ -53,8 +55,19 @@ An external mount usually means a **long cable or extension**, and the C920 is b
 - Give the camera **its own USB port**, not a hub shared with the Beacon + Nitehawk.
 - `dmesg | grep -i usb` — look for reset/`disconnect` spam.
 
-### 3.4 Resolution vs. USB2 ceiling
-1080p MJPEG @30fps sits near the USB2 bandwidth limit. If it's flaky, drop to **720p** — plenty for a printer cam and usually rock-solid.
+### 3.4 Format & resolution — confirmed C920 capabilities
+`v4l2-ctl --list-formats-ext` on Karman's C920 (index0) reports:
+
+| Format | 1280×720 | 1920×1080 | Notes |
+|---|---|---|---|
+| **H264** (hardware) | 30 fps | **30 fps** | compressed, low CPU — use this for go2rtc passthrough (§5) |
+| **MJPG** (hardware) | 30 fps | 30 fps | compressed, higher bandwidth than H264 |
+| **YUYV** (raw) | 10 fps *max* | **5 fps** *max* | uncompressed — saturates USB2, hard fps cap |
+
+Consequences:
+- **Hardware H.264 is available at 1080p30** → full-res, full-framerate go2rtc passthrough is viable; no need to compromise resolution for smoothness.
+- **Never let capture negotiate YUYV.** Raw is bandwidth-starved on USB2 and caps at **5fps @1080p / 10fps @720p** *regardless of lighting* — an independent "laggy, low CPU" cause. Moving to `camera-streamer`/go2rtc with H264 avoids raw entirely; `ustreamer` should be pinned to MJPG.
+- A `max_fps:` lower than 30 (Karman was at 15) is a **self-imposed** cap — the hardware does 30 in both compressed formats.
 
 ### 3.5 Persisting the settings — *where they go*
 `v4l2-ctl` run from a shell resets on replug/reboot. The permanent home for these is the **`v4l2ctl:` parameter inside the camera's section of `crowsnest.conf`** (repo root, tracked). Karman's camera is the `[cam 1]` section; a commented `#v4l2ctl:` placeholder already exists there — uncomment it and append the settings comma-separated:
@@ -64,7 +77,7 @@ mode: camera-streamer                   # ustreamer cannot do WebRTC — see §5
 device: /dev/v4l/by-id/usb-046d_HD_Pro_Webcam_C920_...-index0   # stable path; NOT /dev/video0
 resolution: 1280x720
 max_fps: 30
-v4l2ctl: focus_automatic_continuous=0,focus_absolute=30,auto_exposure=1,exposure_time_absolute=250
+v4l2ctl: focus_automatic_continuous=0,focus_absolute=30   # focus locked; exposure left on auto (see §3.1)
 ```
 Notes:
 - **`device:`** — use the `/dev/v4l/by-id/...` path (find via `ls /dev/v4l/by-id/`), not `/dev/video0`, which can shuffle across reboots.
@@ -132,8 +145,8 @@ crowsnest --version                          # Crowsnest 4.x? (go2rtc bundled)
 ## 8. Checklist
 
 - [ ] Lock **focus** (`focus_automatic_continuous=0`, fixed `focus_absolute`).
-- [ ] Lock **exposure + framerate** (`auto_exposure=1`, `exposure_time_absolute`, `-p 30`).
-- [ ] Verify the camera actually produces **30fps** after locking.
+- [ ] Leave **exposure on auto**; add light to the scene if framerate drops (lock only as a last resort — see §3.1).
+- [ ] Verify the camera actually produces **30fps** under good lighting.
 - [ ] Give the camera its **own USB port**; check `dmesg` for resets.
 - [ ] Consider dropping to **720p** if 1080p is flaky.
 - [ ] Persist v4l2 settings in Crowsnest's **`v4l2ctl:`** line.
