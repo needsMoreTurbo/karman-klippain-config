@@ -96,7 +96,30 @@ Only **camera-streamer** and **go2rtc** can do H.264→WebRTC passthrough; legac
 3. **One read, many viewers.** go2rtc opens the camera once and restreams to all clients, killing the "every open browser tab spawns its own stream" CPU/USB multiplication — relevant to the resonance-test shutdown (§6).
 
 ### 5.2 The config (git-tracked)
-`go2rtc.yaml` lives in the repo root (= `~/printer_data/config/`), so it deploys via `GIT_PULL` and is editable from Mainsail's file manager. The stream uses `#video=copy` to pass the C920's hardware H.264 through untranscoded. See [`go2rtc.yaml`](../go2rtc.yaml).
+[`go2rtc.yaml`](../go2rtc.yaml) lives in the repo root (= `~/printer_data/config/`), so it deploys via `GIT_PULL` and is editable from Mainsail's file manager. Karman's actual config:
+```yaml
+streams:
+  # #video=copy passes the C920's HARDWARE H.264 straight through: no transcode,
+  # near-zero CPU, and H.264 is exactly what browsers play over WebRTC.
+  printer:
+    - ffmpeg:device?video=/dev/v4l/by-id/usb-046d_HD_Pro_Webcam_C920_E98816AF-video-index0&input_format=h264&video_size=1280x720&framerate=30#video=copy
+
+api:
+  listen: ":1984"        # go2rtc dashboard + Mainsail WebRTC endpoint
+  origin: "*"            # allow cross-origin: Mainsail (:80) embeds go2rtc (:1984).
+                         # Without this the dashboard works but Mainsail hangs on "connecting".
+
+webrtc:
+  listen: ":8555"        # WebRTC media (TCP/UDP)
+  candidates:
+    - 192.168.1.240:8555 # LAN address so the browser knows where to connect
+```
+Field-by-field, the three things that make this work:
+- **`ffmpeg:device?...#video=copy`** — reads the C920's H.264 directly and passes it through with no transcode (the §3.4 hardware format; never YUYV).
+- **`api.origin: "*"`** — required because Mainsail and go2rtc are different origins (§5.6 gotcha).
+- **`webrtc.candidates`** — advertises the Pi's LAN I:port so the browser's WebRTC can reach the media stream.
+
+Stream name is **`printer`** — this is the `src=printer` you reference from Mainsail and the snapshot URL.
 
 ### 5.3 Install (Pi, arm64)
 go2rtc uses system `ffmpeg` for V4L2 capture:
@@ -161,7 +184,7 @@ Worth recording because it bit Karman: a Shake&Tune run shut `mcu` down with `Ti
 - The C920 stream (plus the Beacon streaming over USB) competes for the same CPU/USB.
 - The Pi can't feed step data to `mcu` on schedule → `Timer too close`; the camera starves at the same instant → visible lag.
 
-**Before any resonance test, stop the camera stream** (close all webcam browser tabs, or `sudo systemctl stop crowsnest`) to free the host. This is the main reason to prefer a **single-read restreamer (go2rtc)** over per-tab MJPEG streams generally.
+**Before any resonance test, stop the camera** with `sudo systemctl stop go2rtc` (restart it after). Note go2rtc's ffmpeg capture runs while any client is connected and stops shortly after the last one disconnects — so closing browser tabs *helps*, but stopping the service is the reliable way to fully release the CPU/USB during a test. Restart with `sudo systemctl start go2rtc`.
 
 ---
 
@@ -179,18 +202,18 @@ crowsnest --version                          # Crowsnest 4.x? (go2rtc bundled)
 
 ## 8. Checklist
 
-Committed to the repo:
+Done — go2rtc streaming is live and playing in Chromium via Mainsail (WebRTC):
 - [x] Comment out `crowsnest.conf` `[cam 1]` so go2rtc can own the camera.
-- [x] Add git-tracked **`go2rtc.yaml`** (720p30, hardware H.264 `#video=copy`).
+- [x] Add git-tracked **`go2rtc.yaml`** (720p30, hardware H.264 `#video=copy`, `api.origin "*"`).
 - [x] Pin the stable **`/dev/v4l/by-id/...index0`** device path.
 - [x] Leave **exposure on auto** (see §3.1).
+- [x] Install ffmpeg + **go2rtc arm64** binary (§5.3).
+- [x] Create **`go2rtc.service`** with the focus-lock `ExecStartPre` (§5.4).
+- [x] Deploy: `GIT_PULL` → `restart crowsnest` → `enable --now go2rtc` (§5.5).
+- [x] Add **WebRTC (go2rtc)** webcam in Mainsail — URL Stream `http://192.168.1.240:1984/?src=printer`, snapshot `.../api/frame.jpeg?src=printer` (§5.6).
 
-Remaining (on the Pi):
-- [ ] Install ffmpeg + **go2rtc arm64** binary (§5.3).
-- [ ] Create **`go2rtc.service`** with the focus-lock `ExecStartPre` (§5.4).
-- [ ] Deploy in order: `GIT_PULL` → `restart crowsnest` → `enable --now go2rtc` (§5.5).
-- [ ] Verify at **`:1984`** it plays in Chromium; confirm it grabbed **H264** (not YUYV).
-- [ ] Add the **WebRTC (go2rtc)** webcam in Mainsail (§5.6).
-- [ ] Tune **`focus_absolute`** for a sharp bed; verify **30fps** under good lighting.
+Remaining / ongoing:
+- [ ] Tune **`focus_absolute`** in the `go2rtc.service` `ExecStartPre` for a sharp bed; verify **30fps** under good lighting.
 - [ ] Give the camera its **own USB port**; check `dmesg` for resets.
-- [ ] **Stop the camera stream before resonance tests.**
+- [ ] **`sudo systemctl stop go2rtc` before resonance tests** (§6).
+- [ ] moonraker-timelapse (if used): snapshot URL → `http://localhost:1984/api/frame.jpeg?src=printer`.
