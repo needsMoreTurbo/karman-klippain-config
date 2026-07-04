@@ -140,8 +140,13 @@ If go2rtc logs `device or resource busy` (`journalctl -u go2rtc -e`), crowsnest 
 
 ### 5.6 Verify, then add to Mainsail
 - Open **`http://192.168.1.240:1984`** (go2rtc dashboard) → `printer` stream → WebRTC link. If it plays in Chromium here, the pipeline works.
-- Mainsail → Settings → **Webcams** → Add: **Service** = `WebRTC (go2rtc)`, **URL** = `http://192.168.1.240:1984/api/ws?src=printer`. `src` must match the stream name in `go2rtc.yaml`.
+- Mainsail → Settings → **Webcams** → Add:
+  - **Service** = `WebRTC (go2rtc)`
+  - **URL Stream** = `http://192.168.1.240:1984/api/ws?src=printer` (`src` must match the stream name in `go2rtc.yaml`)
+  - **URL Snapshot** = `http://192.168.1.240:1984/api/frame.jpeg?src=printer` (the default `/webcam/?action=snapshot` is crowsnest and is now dead)
 - moonraker-timelapse (if used): point its snapshot URL at `http://localhost:1984/api/frame.jpeg?src=printer`.
+
+> **Gotcha — Mainsail hangs on "connecting" but the go2rtc dashboard works:** this is **cross-origin**. The dashboard (`:1984`) is same-origin with the API; Mainsail (`:80`) is not, and the browser blocks the cross-origin WebSocket unless go2rtc sends CORS headers. Fix: `api.origin: "*"` in `go2rtc.yaml` (already set), then restart go2rtc.
 
 ### 5.7 The caveat that ties the layers together
 go2rtc is a **transport layer, not a camera driver** — it faithfully streams whatever the C920 hands it. If a §3.1 auto-exposure framerate drop is active (dim scene), go2rtc will dutifully deliver a smooth **5fps** and it will still feel laggy. **Fix production (§3) *and* transport (§5).** They address different halves.

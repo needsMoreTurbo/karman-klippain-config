@@ -16,6 +16,9 @@ streams:
 
 api:
   listen: ":1984"        # go2rtc dashboard + Mainsail WebRTC endpoint
+  origin: "*"            # allow cross-origin: Mainsail is served on :80 and embeds
+                         # go2rtc on :1984 (different origin). Without this the
+                         # go2rtc dashboard works but Mainsail hangs on "connecting".
 
 webrtc:
   listen: ":8555"        # WebRTC media (TCP/UDP)
