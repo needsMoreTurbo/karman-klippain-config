@@ -142,7 +142,7 @@ If go2rtc logs `device or resource busy` (`journalctl -u go2rtc -e`), crowsnest 
 - Open **`http://192.168.1.240:1984`** (go2rtc dashboard) → `printer` stream → WebRTC link. If it plays in Chromium here, the pipeline works.
 - Mainsail → Settings → **Webcams** → Add:
   - **Service** = `WebRTC (go2rtc)`
-  - **URL Stream** = `http://192.168.1.240:1984/api/ws?src=printer` (`src` must match the stream name in `go2rtc.yaml`)
+  - **URL Stream** = `http://192.168.1.240:1984/?src=printer` — the go2rtc **base** URL, *not* `.../api/ws?...`. Mainsail resolves `api/ws` relative to what you enter; if you include `/api/ws` it doubles to `/api/api/ws` and the socket fails. `src` must match the stream name in `go2rtc.yaml`.
   - **URL Snapshot** = `http://192.168.1.240:1984/api/frame.jpeg?src=printer` (the default `/webcam/?action=snapshot` is crowsnest and is now dead)
 - moonraker-timelapse (if used): point its snapshot URL at `http://localhost:1984/api/frame.jpeg?src=printer`.
 
