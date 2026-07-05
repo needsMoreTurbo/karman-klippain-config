@@ -1,8 +1,8 @@
 # Camera Streaming — Karman
 
-This document captures how to get low-latency, sharp, reliable video off the C920, and how to diagnose the lag/focus problems seen on Karman. It splits the problem into two independent layers — **frame *production* at the camera** and **frame *transport* to the browser** — because fixing one does nothing for the other, and both were degraded here.
+**Machine:** Karman (Voron 2.4, Klippain) · **Camera:** Logitech C920 (USB UVC, serial `E98816AF`), externally mounted looking into the enclosure · **Host:** Raspberry Pi (`aarch64`), `ernst@192.168.1.240` · **Deployed stack:** standalone **go2rtc** (hardware H.264 → WebRTC) → Mainsail. Crowsnest is installed but its `[cam 1]` is commented out so go2rtc can own the device (§2–§3).
 
-**At a glance:** Logitech C920 (USB UVC, serial `E98816AF`), externally mounted looking into the enclosure, on a Raspberry Pi (`aarch64`). It streams via a **standalone go2rtc** service (hardware H.264 → WebRTC) into Mainsail. Crowsnest is still installed but its camera is disabled so go2rtc can own the device.
+This document captures how to get low-latency, sharp, reliable video off the C920, and how to diagnose the lag/focus problems seen on Karman. It splits the problem into two independent layers — **frame *production* at the camera** and **frame *transport* to the browser** — because fixing one does nothing for the other, and both were degraded here.
 
 ---
 
