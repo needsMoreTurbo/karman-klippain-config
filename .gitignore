@@ -4,3 +4,4 @@
 *.bkp
 save_variables.cfg
 .venv/
+*.bak
