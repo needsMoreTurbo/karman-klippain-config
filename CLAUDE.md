@@ -36,6 +36,8 @@ When in **MOUNT/on-Pi** mode, this working copy is an **SSHFS mount of the Pi's 
 - Use the **mount** (Read/Edit) only to open a **specific known file**.
 - Use **SSH** (`ssh ernst@192.168.1.240 '...'`) for anything that **traverses or searches** — `find`, `grep -r`, `ls -R`, `git log`, tailing logs — so the filesystem walk stays local to the Pi. Do not run recursive Glob/Grep across the mount; push them through SSH instead.
 
+**Git MUST run via SSH on the Pi — never from the mount.** The mount is exported with `follow_symlinks` + `transform_symlinks`, so the framework symlinks (`config/`, `macros/`, `moonraker/`, `scripts/`, `mmu/base/mmu_*.cfg`, …) appear to git as type-changes/deletions from this side. Running `git status`/`add`/`commit`/`diff` on the mount reports bogus changes and would stage a mangled tree. Run **every** git command over SSH, e.g. `ssh ernst@192.168.1.240 'cd ~/printer_data/config && git ...'`, where the symlinks are native and git sees the true state. Editing files on the mount is fine — only git must go through SSH. (Confirm: `git status -s` on the Pi shows plain ` M` on real files, whereas the mount shows spurious `T`/`D`.)
+
 ## Deploy / sync workflow (primary path in clone mode)
 The repo syncs **bidirectionally** with the printer: the workstation makes hand-edits; the Pi writes calibration via `SAVE_CONFIG` and auto-commits through the `GIT_PUSH` / `GIT_PULL` console macros (backed by `git_sync.sh`). This is how edits reach the printer in **workstation-clone** mode. In **mount** mode your edits are already live on the Pi, so `GIT_PULL` isn't needed to deploy — but still commit/push to keep history in sync, and run `FIRMWARE_RESTART` to apply.
 
