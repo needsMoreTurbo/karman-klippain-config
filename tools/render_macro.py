@@ -95,6 +95,7 @@ def build_printer(
     manual_speed=0.0,
     state="OFF",
     prev_state="printing",
+    post_print=False,
 ) -> dict:
     """Build a mock `printer` object for _BED_FAN_TICK from scenario knobs."""
     return {
@@ -117,6 +118,7 @@ def build_printer(
             "chamber_max": 55,
             "chamber_resume": 50,
             "cool": True,
+            "cool_speed": 0.40,
             "cool_temp": 40,
             "tick_interval": 4,
             # internal state
@@ -126,11 +128,14 @@ def build_printer(
             "manual_speed": manual_speed,
             "state": state,
             "prev_state": prev_state,
+            "post_print": post_print,
         },
     }
 
 
-# name, scenario kwargs, expected (state, speed|None, duration|None, fan_set)
+# name, scenario kwargs, expected (state, speed|None, duration|None, fan_set[, post_print])
+# The optional 5th element asserts the post_print window flag after the tick
+# ("True"/"False"); omit it where the window is irrelevant.
 SCENARIOS = [
     ("idle / bed cold",        dict(ps="standby", target=0.0,   bed_t=25.0, chamber=25.0, actual=0.0,  commanded=0.0,  settle_ticks=0), ("OFF",         0.0,  10, True)),
     ("PLA (target < 90)",      dict(ps="standby", target=60.0,  bed_t=60.0, chamber=25.0, actual=0.0,  commanded=0.0,  settle_ticks=0), ("OFF",         0.0,  10, True)),
@@ -146,25 +151,38 @@ SCENARIOS = [
     ("chamber hysteresis band",dict(ps="printing",target=105.0, bed_t=105.0,chamber=52.0, actual=0.50, commanded=0.50, settle_ticks=8), ("RAMP-HOLD",   0.50, 4,  True)),
     ("manual latch held",      dict(ps="printing",target=105.0, bed_t=105.0,chamber=30.0, actual=0.40, commanded=0.40, manual_latch=True, manual_speed=0.40), ("MANUAL", None, 4, False)),
     ("manual held in cooldown", dict(ps="complete",prev_state="complete", target=0.0, bed_t=90.0, chamber=45.0, actual=0.50, commanded=0.50, manual_latch=True, manual_speed=0.50), ("MANUAL", None, 4, False)),
-    ("print-end clears latch",  dict(ps="complete",prev_state="printing", target=0.0, bed_t=90.0, chamber=45.0, actual=0.50, commanded=0.50, manual_latch=True, manual_speed=0.50), ("COOL",   0.10, 4, True)),
+    ("print-end clears latch",  dict(ps="complete",prev_state="printing", target=0.0, bed_t=90.0, chamber=45.0, actual=0.50, commanded=0.50, manual_latch=True, manual_speed=0.50), ("COOL",   0.40, 4, True)),
     ("new print drops latch",   dict(ps="printing",prev_state="complete", target=105.0,bed_t=60.0, chamber=30.0, actual=0.50, commanded=0.50, manual_latch=True, manual_speed=0.50), ("HEATING",0.10, 4, True)),
     ("resume keeps latch",      dict(ps="printing",prev_state="paused",   target=105.0,bed_t=105.0,chamber=30.0, actual=0.50, commanded=0.50, manual_latch=True, manual_speed=0.50), ("MANUAL", None, 4, False)),
     ("slider moved -> latch",  dict(ps="printing",target=105.0, bed_t=105.0,chamber=30.0, actual=0.30, commanded=0.10), ("MANUAL",      None, 4,  False)),
-    ("post-print cooling",     dict(ps="complete",target=0.0,   bed_t=90.0, chamber=45.0, actual=0.10, commanded=0.10), ("COOL",        0.10, 4,  True)),
+    ("post-print cooling",     dict(ps="complete",target=0.0,   bed_t=90.0, chamber=45.0, actual=0.10, commanded=0.10), ("COOL",        0.40, 4,  True)),
     ("post-print cold -> off", dict(ps="complete",target=0.0,   bed_t=40.0, chamber=35.0, actual=0.0,  commanded=0.0),  ("OFF",         0.0,  30, True)),
     ("disabled",               dict(enable=False, ps="printing",target=105.0,bed_t=105.0, chamber=30.0,actual=0.0,  commanded=0.0),  ("DISABLED",    0.0,  30, True)),
+    # --- one-shot post-print window: stale-`complete` regressions (2026-07) ---
+    # print_stats.state stays "complete" until the next print loads; the window
+    # flag (post_print) replaces level-triggering on that stale state.
+    ("stale complete: ABS preheat",   dict(ps="complete", prev_state="complete", target=105.0, bed_t=85.0,  chamber=28.0, actual=0.0,  commanded=0.0,  settle_ticks=0), ("HEATING", 0.10, 4,  True,  "False")),
+    ("stale complete: ramp",          dict(ps="complete", prev_state="complete", target=105.0, bed_t=104.5, chamber=30.0, actual=0.40, commanded=0.40, settle_ticks=8), ("RAMP",    0.43, 4,  True,  "False")),
+    ("cooldown: window continues",    dict(ps="complete", prev_state="complete", post_print=True,  target=0.0,   bed_t=80.0, chamber=45.0, actual=0.40, commanded=0.40), ("COOL",    0.40, 4,  True,  "True")),
+    ("cooldown: window finishes",     dict(ps="complete", prev_state="complete", post_print=True,  target=0.0,   bed_t=50.0, chamber=35.0, actual=0.10, commanded=0.10), ("OFF",     0.0,  30, True,  "False")),
+    ("ABS reheat during cooldown",    dict(ps="complete", prev_state="complete", post_print=True,  target=105.0, bed_t=90.0, chamber=45.0, actual=0.10, commanded=0.10), ("HEATING", 0.10, 4,  True,  "False")),
+    ("PLA reheat during cooldown",    dict(ps="complete", prev_state="complete", post_print=True,  target=60.0,  bed_t=50.0, chamber=45.0, actual=0.10, commanded=0.10), ("OFF",     0.0,  10, True,  "False")),
+    ("abandoned preheat: no COOL",    dict(ps="complete", prev_state="complete", post_print=False, target=0.0,   bed_t=60.0, chamber=45.0, actual=0.0,  commanded=0.0),  ("OFF",     0.0,  10, True,  "False")),
+    ("manual in cooldown keeps window", dict(ps="complete", prev_state="complete", post_print=True, target=0.0,  bed_t=80.0, chamber=45.0, actual=0.50, commanded=0.50, manual_latch=True, manual_speed=0.50), ("MANUAL", None, 4, False, "True")),
 ]
 
 _STATE_RE = re.compile(r"VARIABLE=state VALUE=\"'([^']*)'\"")
 _FAN_RE = re.compile(r"SET_FAN_SPEED FAN=Bed_Fans SPEED=([-\d.]+)")
 _DUR_RE = re.compile(r"UPDATE_DELAYED_GCODE ID=_BED_FAN_TICK DURATION=(\d+)")
+_POST_RE = re.compile(r"VARIABLE=post_print VALUE=(True|False)")
 
 
 def selftest(cfg_path: Path) -> int:
     print(f"Self-test: _BED_FAN_TICK in {cfg_path.relative_to(REPO_ROOT)}\n")
     failures = 0
     for name, kw, expect in SCENARIOS:
-        exp_state, exp_speed, exp_dur, exp_fanset = expect
+        exp_state, exp_speed, exp_dur, exp_fanset = expect[:4]
+        exp_post = expect[4] if len(expect) > 4 else None
         try:
             out = render(cfg_path, "_BED_FAN_TICK", build_printer(**kw))
         except Exception as e:  # noqa: BLE001
@@ -189,6 +207,11 @@ def selftest(cfg_path: Path) -> int:
             probs.append(f"speed={got_speed} (want {exp_speed})")
         if exp_dur is not None and got_dur != exp_dur:
             probs.append(f"duration={got_dur} (want {exp_dur})")
+        if exp_post is not None:
+            post_m = _POST_RE.search(out)
+            got_post = post_m.group(1) if post_m else None
+            if got_post != exp_post:
+                probs.append(f"post_print={got_post} (want {exp_post})")
 
         if probs:
             failures += 1

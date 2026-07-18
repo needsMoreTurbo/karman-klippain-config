@@ -64,9 +64,18 @@ The "floating" mode (`_FLOATING_FAN`, `bed_fans.cfg:187`) nudges speed ±1 % but
 | **HEATING** | demand active **and** `bed_temp < target − target_tolerance` | `heating_speed`; reset settle + ramp progress | `tick_interval` |
 | **RAMP** | at target (within `target_tolerance`), held ≥ `settle_time` | `+ramp_step` toward `high_speed` | `tick_interval` |
 | **HOLD** | ramp reached `high_speed` | hold `high_speed` (subject to caps) | `tick_interval` |
-| **COOL** | `print_stats.state` ∈ {complete, cancelled, error}, no manual latch | `heating_speed` until `chamber < cool_temp`, then OFF; clears a mid-print latch on the print-end transition | `tick_interval` / slow |
+| **COOL** | post-print window open (see below) and `heater_bed.target == 0`, no manual latch | `cool_speed` until `chamber < cool_temp`, then OFF; clears a mid-print latch on the print-end transition | `tick_interval` / slow |
 
 "Demand active" = `heater_bed.target ≥ activation_temp`. Because the same loop runs in standby, **manual preheat gets the identical HEATING→RAMP→HOLD treatment** — gentle while climbing, ramp after target.
+
+**Post-print window (one-shot, `post_print` flag).** COOL is governed by an explicit window, *entered* on the print-end **transition** (`print_stats.state` newly ∈ {complete, cancelled, error}, detected via `prev_state`) and tracked in the `post_print` variable — never level-triggered on `print_stats.state` itself. That distinction matters because Klipper leaves `print_stats.state` at `"complete"` indefinitely: it only returns to `"standby"` via `SDCARD_RESET_FILE`, or when the next print loads (`SDCARD_PRINT_FILE`/`M23`) — there is no timeout, and Klippain issues `SDCARD_RESET_FILE` only on *cancel*, not on *complete*. An earlier revision level-triggered on the stale state, so a manual bed preheat after a completed print stayed trapped in the post-print branch and the fans never engaged (found 2026-07-18).
+
+The window **closes permanently** when any of these occurs:
+1. **Cooldown completes** — `chamber < cool_temp` (the normal COOL→OFF exit).
+2. **Any bed heat demand appears** — `heater_bed.target > 0`. Deliberately *any* demand, not `≥ activation_temp`: an ABS-temp reheat during cooldown must get the full HEATING→RAMP→HOLD cycle, and a PLA-temp reheat must drop the fans to OFF rather than leaving COOL stirring warm air at a bed being heated.
+3. **A new print starts** (`just_started`).
+
+A manual latch held during cooldown *suspends* the window without closing it — clearing the latch with `BED_FANS_AUTO` resumes COOL if the chamber is still warm. One accepted trade-off: the window is one-shot, so if a reheat is set and then cancelled while the chamber is still ≥ `cool_temp`, COOL does **not** resume — fans stay off and the chamber cools passively ("fail toward less airflow"). After the window closes, `print_stats.state == "complete"` is inert; the automatic rules alone decide fan behavior.
 
 ```
                     ┌─────────────────────────── manual latch set ──────────────────────────┐
@@ -77,7 +86,8 @@ The "floating" mode (`_FLOATING_FAN`, `bed_fans.cfg:187`) nudges speed ±1 % but
                     │                                        │        (target−drop_guard):         │                      │
                     │                                        └───────── step down + freeze ────────┴──────────────────────┘
                     │                                                                                                      
-                    └────────────────── print ends ◀── [COOL] ◀── complete / cancelled / error ────────────────────────────
+                    └── window closes (chamber cool, ◀── [COOL] ◀── print-end transition (opens one-shot window; ─────────
+                        bed demand, or new print)                   any bed target > 0 exits to the auto states)
 ```
 
 ### 3.3 Crash protection (the core fix)
@@ -115,7 +125,8 @@ Klipper reports `fan_generic.speed` as the last commanded value (not a measureme
 | `reheat_band` | `8.0` | °C below target before the ramp is abandoned and the bed fully re-heats (must be `> ramp_drop_guard`) |
 | `chamber_max` | `55` | chamber cap — fans step down above this |
 | `chamber_resume` | `50` | fans may step back up below this (hysteresis) |
-| `cool` | `True` | run fans low post-print to assist bed cool-down |
+| `cool` | `True` | run fans post-print to assist bed cool-down |
+| `cool_speed` | `0.40` | fan speed during the post-print cool assist (independent of `heating_speed` — the heater-stall constraint doesn't apply with the heater off) |
 | `cool_temp` | `40` | stop the post-print cool assist below this chamber temp |
 | `tick_interval` | `4` | seconds between ticks while active |
 
@@ -159,5 +170,6 @@ This catches template syntax errors and logic regressions (it already caught an 
 3. **Ramp (fixes §1.3)** — at 105 °C, fans wait `settle_time`, then ramp in `ramp_step` increments to `high_speed`; bed stays within `ramp_drop_guard`. Force a dip (brief manual blast) and confirm the loop steps down + freezes the ramp.
 4. **Manual override (fixes §1.2)** — mid-print, drag the Mainsail slider → auto-latch, loop stops clobbering; `BED_FANS_MANUAL SPEED=40` holds; `BED_FANS_AUTO` resumes. Also verify `BED_FANS_MANUAL` **during cooldown** holds (doesn't get reclaimed by COOL), a mid-print latch clears when the print ends, and a latch left on during cooldown is dropped when the next print starts.
 5. **Chamber cap** — fans step down when `Chamber ≥ chamber_max`, recover below `chamber_resume`.
-6. **Post-print** — end/cancel → COOL runs `heating_speed` to `cool_temp`, then OFF; latch cleared.
+6. **Post-print** — end/cancel → COOL runs `cool_speed` to `cool_temp`, then OFF; latch cleared.
 7. **PLA regression** — bed 60 °C (< `activation_temp`) → fans stay OFF throughout.
+8. **Stale-complete preheat (post-print window)** — run a print to completion, then **without restarting Klipper** (a `FIRMWARE_RESTART` resets `print_stats` to `standby` and hides the bug this tests for), set bed 105 °C from the GUI. Fans must run the normal HEATING→SETTLE→RAMP→HOLD cycle (`BED_FANS_STATUS` shows `window=False`). Then: during a cooldown (COOL active), set bed 60 °C → fans go OFF immediately; set bed 105 °C instead → HEATING engages.
