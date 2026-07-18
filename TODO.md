@@ -1,16 +1,17 @@
 # NightOwl Build — TODO
 
 Captured from the Todoist project **NightOwl Build** on 2026-07-08.
-Updated 2026-07-14 after toolhead calibration, SFS removal, and first working tool changes.
+Updated 2026-07-14 (late) after the 🎉 **first 2-color print** and Filamatrix cutter bring-up.
 
 ## ▶ Next up (in order)
-_Goal: get Karman printing 2-color again with **tip forming** (cutter deferred — it's blocked on the depressor install and isn't required to print)._
-1. **Slicer configuration for Happy Hare** — toolchange g-code, wipe tower OFF, `force_purge_standalone: 1`, per-gate filament profiles. See the *Slicer configuration* section + HH wiki.
-2. **Purge + park position** — give the toolchange a real XY (park positions are still `-999`); purge into the back-left bin, wipe on the existing brush. See *Happy Hare — calibration & tuning*.
-3. 🎯 **First 2-color test print** — tip forming only, slow is fine. Validates load → tip form → purge → wipe → resume.
-4. **Filamatrix cutter** (after depressor installed) — cut geometry + enable `_MMU_CUT_TIP`. Blocked; not needed for #3.
+_Goal: validate the cutter end-to-end, then a 2-color print WITH cutting. Details in TODAY.md._
+1. **Confirmation cut at `residual 25`** — `T0` → `MMU_EJECT`, inspect at the gate; expect `Retracting filament 30.0mm` and a **flat** face. Pointy → set residual 30.
+2. **Real `T0`↔`T1` swaps with the cutter** — verify fragment accounting comes out small-positive (net-based in real flow) and state stays in sync.
+3. **Walk `retract_length` up** (55 → 58 → 62) while cuts stay flat — less sliver per cut.
+4. 🎯 **2-color print with cutting** — watch swap blobs (should shrink with residual fixed), tower transitions (may need more flushing for the fragment), FlowGuard.
+5. **Commit the batch** via SSH (cutter config, residual/ooze, slicer docs, moonraker, TODO/TODAY — many files pending).
 
-**Watch item:** toolhead extruder `run_current` is only **0.45 A** (Klippain default) — too weak to reliably stall against the nozzle (broke auto toolhead cal) and a likely purge-slip risk. Bump toward ~70–80% of the motor's rating if slip recurs. (Need the toolhead motor's rated current.)
+**Watch item:** toolhead extruder `run_current` = **0.45 A** (Klippain default). The cut-accounting anomaly was cleared (test-mode arithmetic, NOT slip), but the auto toolhead-cal push-to-stall failures still implicate it. Bump to ~70–80% of motor rating if slip symptoms appear in prints (need the motor's rated current).
 
 ## 🗺 High-level roadmap (priority order)
 _The big-picture sequence — reference this when re-prioritizing. Detailed tasks live in the sections below._
@@ -27,6 +28,15 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 8. **Spoolman integration.**
 
 ## ✅ Recently completed
+
+### 2026-07-14 (evening) — 🎉 first 2-color print + cutter bring-up
+- **First 2-color print succeeded** (Option A: slicer wipe tower owns purge, tip forming). 7 toolchanges, purge deferral to slicer verified in mmu.log.
+- **Slicer fully configured** — complete OrcaSlicer checklist in `docs/mmu_slicer_setup.md` (start/end g-code, SEMM zeroing, extruder-tab toolchange retraction, flushing multiplier guidance). Found the **chamber-soak trap**: Orca's "activate temperature control" toggle doesn't zero `[chamber_temperature]`; nonzero blocks START_PRINT up to 15 min (0.0 tolerance + noisy sensor) — set chamber temp 0 in every MMU filament profile.
+- **Depressor reinstalled front-left + measured**: contact 17,36 → compressed 0.5,36 (X-axis cut). **Cutter enabled** (`form_tip_macro: _MMU_CUT_TIP`); flat cut verified.
+- **Root-caused "formed tip" cut failures + per-swap tower blob to the same bug**: `toolhead_residual_filament` far too low (5). The cut macro parks the tip at `retract_length` *only if residual is true*; at 5 vs a real ~35 the tip sat ~30 mm above the blade (cut air) and loads over-advanced ~30 mm (blob out the nozzle). Set 35 (cut verified flat) → refined to **25** by hand calc (confirmation cut pending). Also `toolhead_ooze_reduction 0→2`, `retract_length 64→55` (margin during testing).
+- **Root-caused the `MMU_EJECT` failure after test cuts**: `MMU_TEST_FORM_TIP` final-ejects into the PTFE and hard-stamps state UNLOADED (mmu.py:4195) → a following `MMU_EJECT` takes the short gate-release branch and errors. Its "−68mm remaining" is test-mode cumulative-travel arithmetic — **not motor slip**. New test workflow: from loaded, `MMU_EJECT` alone (cut + full unload + gate release); `MMU_RECOVER` for any desync.
+- Staged **Option B park/purge position** `0, 358` (back-left bin) as a one-line comment swap in `mmu_macro_vars.cfg`; added `[file_manager] default_metadata_parser_timeout: 120`; noted `enable_toolchange_next_pos: True` already on.
+- Captured the **permanent front-left keep-out** (cutter arm vs. XY idler, ~x<22,y<40 incl. depressor) in configs + docs.
 
 ### 2026-07-14 — toolhead calibration, SFS removal, working tool changes
 - **Removed the BTT SFS v2** (encoder). It sat downstream of the sync-feedback sensor and its wheel drag was corrupting the tension signal + toolhead-path measurements. Running **encoderless** now (PC0/PC1 free).
@@ -54,12 +64,20 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 - BTT SFS v2 wired to the Leviathan (runout + motion).
 
 ## Filamatrix
-### Note: the cutter and depressor make contact at x = 17 mm, y = 352 mm
-### Note: the depressor makes contact with the toolhead at x = 10, y = 303 - 345 mm (makes contact with cutter arm backside, front side at y = 359 mm)
+### Depressor reinstalled FRONT-LEFT 2026-07-14. Lever first contact measured: **x = 17, y = 36** (set as `pin_loc_xy`).
 - [x] wire sensors to nitehawk (pre/post-extruder switches → PB0 / PB1)
 - [x] install toolhead
 - [x] install filamatrix
-- [ ] install beefy depressor [front left side of bed, conservative placement to avoid clash and enable the setup and config of blobifier]
+- [x] install beefy depressor — front-left (keeps the back-left corner free for the purge bin @ 0,358)
+- [x] measure depressor contact point → 17, 36 (staged in `mmu_macro_vars.cfg`)
+- [x] measure fully-compressed point → 0.5, 36 (dry-run verified)
+- [x] enable cutter — `form_tip_macro: _MMU_CUT_TIP` set 2026-07-14
+- [x] first flat cut verified (at `residual 35`); residual refined to 25 by hand calc
+- [ ] **Confirmation cut at `residual 25`** — `T0` → `MMU_EJECT` (cut + full unload + gate release), inspect the flat face **at the NightOwl**, reinsert. Expect `Retracting filament 30.0mm prior to cut`. Pointy face → residual 30.
+  ⚠️ Never use `MMU_TEST_FORM_TIP` here: final-ejects into the PTFE + hard-stamps state UNLOADED (mmu.py:4195) → next `MMU_EJECT` errors. Desync fix: `MMU_RECOVER`.
+- [ ] **Walk `retract_length` up** 55 → 58 → 62 while cuts stay flat (smaller sliver = less purge)
+- [ ] Real `T0`↔`T1` swap — watch the *real* fragment accounting (net-position based, should be a small positive number)
+- [ ] Watch tower flushing volumes with the cutter (cut fragment adds to what must purge)
 
 ## NightOwl exterior wiring
 - [x] short term, setup dedicated 24v power brick (variable voltage unit)
@@ -69,13 +87,16 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 - [ ] wire microfit wire internally to the printer
 
 ## Blobifier
-- [ ] Assemble blobifier
+### Note: The bucket was reassembled and the optimum engagement point for the shaker arm is X = 3.0 mm and Z = 3.0 mm (SB is cradled within the shaker arm just right!)
+- [ ] Assemble blobifier servo assembly - post-rebuild from new printed parts, hot glue the connect in place 
+- [x] Assemble bucket - post-rebuild from new printed parts
 - [ ] Wire up servo + bucket switch to Leviathan and buck converter — **ports identified:** servo → EXT header `PF5` (+5V/GND from EXT), bucket switch → free endstop port `PC3` (Z is Beacon)
 - [x] Determine shim height required and print it
-- [ ] Adjust SB shaker mount for shimmed servo height (shim height 5.5mm)
-- [ ] Reprint shaker arm 4 mm taller
-- [ ] Print wider bed plate version of the mount
+- [x] Adjust SB shaker mount for shimmed servo height (shim height 5.5mm)
+- [x] Reprint shaker arm 4 mm taller
+- [ ] Print wider bed plate version of the mount (5 mm wider)
 - [ ] Print shim 1 mm shorter
+- [ ] Reprint the base due to damage to the existing one (cracked attachment last time, consider making the design more robust)
 - [ ] Install and wire up buck converter for servo power (5V)
 
 
@@ -95,6 +116,8 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 - [x] connect endstops and test them in klipper (all 7 switches)
 - [x] connect extruders and test them in klipper
 - [x] plumb the ptfe lines (gate → extruder) — needed before bowden calibration / full loads
+- [ ] replace mirrored latch with althernative versions that I printed (existing version is coming unlatched and is not reliable)
+- [ ] properly adjust the extruder idler tension (didn't actually follow the instructions, just tightened it down some arbritray amount)
 - [ ] relocate NightOwl to its permanent home (closer to the filament-load side) — pairs with the re-plumb + bowden re-cal below and the microfit 24V wiring
 - [ ] re-plumb the ptfe and recalibrate the bowden lengths (MMU_CALIBRATE_BOWDEN) [only for final installation once everything works and there is a good location for the nightowl]
 
@@ -117,23 +140,31 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 - [x] **Toolhead calibration** — done clean+dirty; auto-cal unreliable (0.45 A extruder slip) so measured manually. Values in `mmu_parameters.cfg` 238–240 + `residual 5`.
 - [x] **Test tool changes** (`T0` / `T1`) — both gates swap correctly with tip forming.
 - [x] **FlowGuard** — active encoderless via the TurtleNeck tension switches (`flowguard_enabled: 1`). Encoder path (`flowguard_encoder_mode`) stays 0. Tune `flowguard_max_relief` (currently 40) if false trips.
-- [ ] **Purge + park position** — set a real toolchange park XY (`_MMU_SEQUENCE_VARS` park positions are still `-999`); purge into the back-left bin. `MMU_TEST_PURGE` works; volume math in `docs/mmu_purge_volume.md`.
-- [ ] **Filament cutting (Filamatrix)** — geometry **measured** (`blade_pos 69`, `retract_length 64`); still need `pin_loc_xy` / `pin_loc_compressed_xy` / `pin_park_dist` / `cutting_axis` (back-edge, high-Y) — **blocked on depressor install**. Then enable by setting `form_tip_macro: _MMU_CUT_TIP`.
+- [ ] **Switch purging to Option B (HH-owned, back-left bin)** — currently **Option A** (slicer wipe tower owns purge). Full procedure in `docs/mmu_slicer_setup.md` → *Switching to Option B*. All four are required together:
+  - [ ] **Update park position** — in `mmu_macro_vars.cfg`, swap which `variable_park_toolchange` line is commented: `-999,-999,1,5,2` (A) → **`0, 358, 1, 5, 2`** (B, back-left bin). Both lines already staged in-file.
+  - [ ] `force_purge_standalone: 1` in `mmu_parameters.cfg`
+  - [ ] OrcaSlicer wipe tower **OFF**
+  - [ ] Feed the purge matrix (`MMU_START_SETUP ... PURGE_VOLUMES=!purge_volumes!` before `START_PRINT`) — else purge collapses to residual-only (~5mm). See `docs/mmu_purge_volume.md`.
+  - [x] 0,358 clearance verified — depressor reinstalled **front-left** (17,36), so the back-left bin corner is clear
+- [x] **Filament cutting (Filamatrix)** — CONFIGURED + ENABLED 2026-07-14: pin 17,36 → compressed 0.5,36 (X-axis cut), `blade_pos 69`, `retract_length 55` (testing margin; walk toward 62), `residual 25`, `form_tip_macro: _MMU_CUT_TIP`. Flat cut verified at residual 35; 25-confirmation + swap test pending (see Filamatrix section).
 - [ ] **Nozzle wipe** — configure the post-toolchange wipe on the **existing** brush (the new brush comes later)
 - [ ] Blobifier configuration — servo control, bucket switch, bucket shake
 - [ ] Filament change tuning (retraction amounts, blob tuning, etc.)
 - [ ] **Collision avoidance** — *no Klipper obstacle model exists; enforced by you:*
-  - [ ] **Slicer bed exclusion** — shrink usable Y and/or notch a custom bed polygon so no toolpath reaches the back-edge depressor; also notch the front-left keep-out corner (x=10, y=17)
-  - [ ] **Vet all macro-driven positions** (homing, purge, nozzle brush, prime, park, START_PRINT) to clear the depressor + XY-tensioner zones
-- [ ] 🎯 **First multi-material print** — get Karman printing 2-color again (slow is fine); validates the full load → cut → purge → wipe → resume chain
+  - ⚠️ **FRONT-LEFT KEEP-OUT IS PERMANENT (~x<10, y<17, all Z):** the **Filamatrix cutter arm on the toolhead strikes the front-left XY idler**. This is toolhead geometry — it applies to **every** move (print, travel, homing, park, purge, brush) and is **independent of the depressor** (still applies with the depressor removed).
+  - [ ] **Slicer bed exclusion** — notch a custom bed polygon so no toolpath/travel enters the front-left keep-out; the depressor (front-left, lever contact at 17,36) extends that zone to roughly x<22, y<40
+  - [ ] **Vet all macro-driven positions** (homing, purge, nozzle brush, prime, park, START_PRINT, QGL/tilt, Beacon contact) clear the front-left keep-out
+- [x] 🎯 **First multi-material print** — DONE 2026-07-14 (tip forming, Option A slicer purge; 7 toolchanges clean)
+- [ ] 🎯 **First multi-material print WITH cutter** — same test, cutting live; validates cut → unload → load → purge chain + fragment purging
 
 ## Slicer configuration (Happy Hare)
-- [ ] Disable slicer tip-forming / ramming; let HH form + cut the tip (`force_form_tip_standalone`)
-- [ ] Set up the MMU toolchange g-code (`Tx` mapping) per the HH slicer wiki
-- [ ] Disable the wipe/prime tower (HH handles purge + wipe)
-- [ ] Apply bed-shape exclusions (see Collision avoidance) so no toolpath enters the depressor / tensioner zones
-- [ ] Define per-gate filament profiles + material/color map
-- [ ] Slice + run a 2-color test model end-to-end
+_Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.md` (the authoritative record)._
+- [x] Slicer tip-forming / ramming disabled; SEMM + extruder-tab toolchange retraction zeroed
+- [x] MMU toolchange g-code (`T[next_extruder]`), start/end/layer g-code (Klippain-wrapped, no `MMU_END`)
+- [x] Wipe/prime tower ON (Option A — slicer owns purge); flushing-volume multiplier guidance recorded
+- [x] Per-gate filament slots + colors/temps; chamber temp **0** in MMU filament profiles (chamber-soak trap)
+- [x] Slice + run a 2-color test model end-to-end 🎉
+- [ ] Bed-shape exclusions (see Collision avoidance) — front-left keep-out not yet notched into the bed polygon
 
 ## Toolchange optimization (later)
 - [ ] Implement the fast sequence: retract → cutter → cut → fast-retract while moving to blobifier → blobifier purge → shake bin → wipe → resume
