@@ -29,6 +29,16 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 
 ## ✅ Recently completed
 
+### 2026-07-25 — TurtleNeck → PSF proportional sync-feedback sensor
+- **Swapped the dual-switch TurtleNeck for a PSF (Proportional Sync-Feedback) analog sensor.** Wiring validated: signal → **gpio26 (ADC0)** on the ERB EXTRA PINS header, power → **3.3 V**, common → GND.
+- **Why gpio26 and not a sensor port**: the PSF is analog, and on the RP2040 only gpio26–29 are ADC-capable. Every populated ERB sensor/endstop port (gpio2/3/4/5/12/18/22/24/25) is digital-only, so no existing port could take it. 3.3 V rather than 5 V because the PSF output is ratiometric to its supply — on 5 V it would swing past the 3.3 V ADC limit.
+- **Config**: `MMU_SYNC_ANALOG=gpio26` alias in `mcu.cfg`; `sync_feedback_analog_*` block live in `mmu/base/mmu_hardware.cfg` (tension/compression pin lines commented, not deleted — TurtleNeck is a two-line revert); flowguard comment updated.
+- Corrected a **stale note** claiming the installed Happy Hare rejects the analog options — HH `5cc88729` (2026-07-07) implements `MmuProportionalSensor` and registers `MMU_CALIBRATE_PSENSOR`.
+- Verified nothing else depended on the discrete compression switch: `extruder_homing_endstop: extruder` (Filamatrix switch) and `gate_homing_endstop: mmu_gear` are unaffected, and the tension test / post-load tension adjust both branch on `has_proportional`.
+- **Calibrated** (`MMU_CALIBRATE_PSENSOR`, gate 0 loaded): `max_compression: 0.9965`, `max_tension: 0.0109`, `neutral_point: 0.5037`. Sensor reads **HIGH under compression**, LOW under tension, spanning nearly the full ADC range — so the initial placeholder values were inverted. Buffer travel measured **14.5 mm**, `sync_feedback_buffer_range`/`_maxrange` set to match.
+- **Calibration gotcha (cost several bad runs)**: `MMU_CALIBRATE_PSENSOR` only works if the buffer starts near **mid-travel**. Started from a rail (raw ≈ 0.996) it exits after ~2 of its 2 mm steps on ADC noise and reports garbage — max_tension came back as 0.996 / 0.985 / 0.690 / 0.760 / 0.770 on five consecutive runs. `_seek_limit` in `mmu.py` ends the sweep the instant one sample moves against the ramp, and `SD_THRESHOLD = 0.02` (mmu.py:2833) is **declared but never referenced** — the intended jitter deadband was never wired up. Fix: `MMU_TEST_MOVE MOVE=-2 MOTOR=gear` until `MMU_SENSORS DETAIL=1` shows raw ≈ 0.27, then calibrate. Step budget is *not* the constraint (28 mm available at maxrange 14.5), so raising `MOVE=` doesn't help despite what HH's failure message suggests.
+- **Still pending**: `flowguard_max_relief` at the switch-era 40, to be walked toward ~15.
+
 ### 2026-07-14 (evening) — 🎉 first 2-color print + cutter bring-up
 - **First 2-color print succeeded** (Option A: slicer wipe tower owns purge, tip forming). 7 toolchanges, purge deferral to slicer verified in mmu.log.
 - **Slicer fully configured** — complete OrcaSlicer checklist in `docs/mmu_slicer_setup.md` (start/end g-code, SEMM zeroing, extruder-tab toolchange retraction, flushing multiplier guidance). Found the **chamber-soak trap**: Orca's "activate temperature control" toggle doesn't zero `[chamber_temperature]`; nonzero blocks START_PRINT up to 15 min (0.0 tolerance + noisy sensor) — set chamber temp 0 in every MMU filament profile.
@@ -59,7 +69,7 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 - Both gear steppers moving, directions correct, gates 0/1 mapped (gate 1 on the selector driver).
 - Gear rotation distance calibrated per gate (`[22.3243, 22.4819]`).
 - All 7 MMU switches wired + tested (pre-gate 0/1, post-gear 0/1, gate, sync tension/compression); D2F NC-terminal rework sorted; polarity inverted (`^!`).
-- TurtleNeck dual-switch sync feedback configured (stand-in until the proportional PSF arrives).
+- TurtleNeck dual-switch sync feedback configured (stand-in until the proportional PSF arrives). **Superseded 2026-07-25 — PSF fitted, see below.**
 - Filamatrix + beefy depressor installed; pre/post-extruder filament switches wired to the Nitehawk.
 - BTT SFS v2 wired to the Leviathan (runout + motion).
 
