@@ -144,6 +144,13 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
 - [x] Slice + run a 2-color test model end-to-end 🎉
 - [ ] Bed-shape exclusions (see Collision avoidance) — front-left keep-out not yet notched into the bed polygon
 
+## Miscellaneous
+- [ ] **Audit START_PRINT for no-op / hardware-stale steps** — correctness pass over the 13-action
+  sequence: `chamber_soak` likely a permanent no-op, `force_homing_before_brush` meaningless now the
+  brush is gantry-mounted, and the purge chain may be three deep (Blobifier initial-load purge +
+  Klippain `purge` + prime line). `contact_auto_calibrate` stays.
+  — runbook: `docs/runbooks/start-print-audit.md`
+
 ## Toolchange optimization (later)
 - [ ] Implement the fast sequence: retract → cutter → cut → fast-retract while moving to blobifier → blobifier purge → shake bin → wipe → resume
 - [ ] Tune purge volume — account for the pre-cut retraction so we don't over/under-purge
@@ -175,6 +182,23 @@ decisions lives in `docs/decisions.md`; per-objective execution records are in
 `docs/runbooks/done/`._
 
 ## ✅ Recently completed
+
+### 2026-08-02 — visualizer covers START_PRINT, and a silent under-reporting bug fixed
+- **`start_print` scenario added** to `tools/visualize_toolchange.py`. START_PRINT motion was
+  previously unchecked by any scenario, despite making **three** entries into the y_max feature row
+  (`_CONDITIONAL_MOVE_TO_PURGE_BUCKET` in `clean` ×2 and `extruder_heating`). It simulates the real
+  Klippain modules through the framework symlink, and skips itself with a clear message in a
+  workstation clone where those symlinks dangle.
+- **Result: clean, but with almost no margin.** All three bucket approaches cross y=350 at
+  **x=17.1** — inside the 15<x<40 clear lane by 2.1 mm. Klippain's bucket move is a bare diagonal
+  `G1 X Y` that does **not** route through `_KARMAN_PARK_MOVE`, so the lane rule is not enforced
+  there, only observed. Worth remembering before anything moves `purge_bucket_xyz` or `home_xy_position`.
+- **Fixed a bug that made the visualizer under-report** (`92ef3df`): the move regex accepted `-` but
+  not `+`, so every `G1 X+35` was dropped. Nozzle wipes were simulated as a one-sided walk out to
+  x=−139 and still passed, because segments that never happen cannot violate a zone. The four
+  toolchange scenarios were unaffected (segment counts unchanged), but any wipe loop was blind.
+- Found incidentally while auditing START_PRINT (`docs/runbooks/start-print-audit.md`); not part of
+  that runbook's scope, and no printer config was changed.
 
 ### 2026-07-25 — Blobifier live, standalone-swap workflow, and session tooling
 - **Blobifier fully live**: base/bucket installed, servo + switch tested, arm/tray fitted, geometry

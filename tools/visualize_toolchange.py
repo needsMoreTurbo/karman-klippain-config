@@ -3,14 +3,17 @@
 # dependencies = ["jinja2"]
 # ///
 """
-Simulate Karman's toolchange choreography offline and render the toolhead path
-over a bed map with the keep-out zones, so a swap can be inspected BEFORE the
-printer moves.
+Simulate Karman's toolchange and START_PRINT choreography offline and render the
+toolhead path over a bed map with the keep-out zones, so a swap or a print start
+can be inspected BEFORE the printer moves.
 
 How it works
 ------------
 * Reuses render_macro.py's Klipper-faithful Jinja2 environment to render the
-  real macro bodies from this repo (cut, blobifier, park move, wipe, shake).
+  real macro bodies from this repo (cut, blobifier, park move, wipe, shake) and
+  the Klippain framework modules reached through the framework symlink
+  (start_print.cfg, nozzle_cleaning.cfg — absent in a workstation clone, which
+  simply drops the start_print scenario rather than failing).
 * Harvests every `variable_*` from the cfg files so the simulation always uses
   the CURRENT tuned values (pin_loc, tray_top, brush_start, min_toolchange_z...).
 * Expands nested macro calls (e.g. BLOBIFIER -> BLOBIFIER_SERVO,
@@ -49,16 +52,24 @@ from render_macro import extract_macro_body  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 
-# Files that own the macros we simulate
+# Files that own the macros we simulate.
+# The macros/ entries are Klippain framework files reached through the framework
+# symlink: they resolve on the Pi / SSHFS mount and dangle in a workstation clone,
+# so every reader below skips files that are not present.
 MACRO_FILES = [
     REPO / "mmu/base/mmu_cut_tip.cfg",
     REPO / "mmu/addons/blobifier.cfg",
     REPO / "overrides.cfg",
+    REPO / "macros/base/start_print.cfg",
+    REPO / "macros/helpers/nozzle_cleaning.cfg",
 ]
-# Files that own gcode_macro variable_* blocks we must harvest
+# Files that own gcode_macro variable_* blocks we must harvest.
+# Order matters: overrides.cfg re-opens [gcode_macro _USER_VARIABLES] and must win.
 VAR_FILES = [
     REPO / "mmu/base/mmu_macro_vars.cfg",
     REPO / "mmu/addons/blobifier.cfg",
+    REPO / "variables.cfg",
+    REPO / "overrides.cfg",
 ]
 
 AXIS_MAX = {"x": 351.0, "y": 359.0}
@@ -112,9 +123,34 @@ def _convert(raw: str):
         return v
 
 
+def beacon_home() -> tuple[tuple[float, float], float]:
+    """(home_xy_position, home_z_hop) from the [beacon] section — where G28 Z goes."""
+    xy, hop = (175.0, 175.0), 5.0
+    f = REPO / "overrides.cfg"
+    if not f.exists():
+        return xy, hop
+    section = None
+    for line in f.read_text().splitlines():
+        s = line.strip()
+        if s.startswith("["):
+            section = s.strip("[]").split()[0]
+            continue
+        if section != "beacon":
+            continue
+        m = re.match(r"^\s*home_xy_position\s*:\s*([-\d.]+)\s*,\s*([-\d.]+)", line)
+        if m:
+            xy = (float(m.group(1)), float(m.group(2)))
+        m = re.match(r"^\s*home_z_hop\s*:\s*([-\d.]+)", line)
+        if m:
+            hop = float(m.group(1))
+    return xy, hop
+
+
 def harvest_variables() -> dict[str, dict]:
     out: dict[str, dict] = {}
     for f in VAR_FILES:
+        if not f.exists():
+            continue
         section = None
         for line in f.read_text().splitlines():
             m = _SEC_RE.match(line.strip())
@@ -136,6 +172,8 @@ def load_macros() -> dict[str, str]:
     """name -> raw jinja body, for every [gcode_macro] in MACRO_FILES."""
     bodies: dict[str, str] = {}
     for f in MACRO_FILES:
+        if not f.exists():
+            continue
         text = f.read_text()
         for m in re.finditer(r"^\[gcode_macro\s+([^\]]+)\]", text, re.M):
             name = m.group(1).strip()
@@ -144,6 +182,9 @@ def load_macros() -> dict[str, str]:
             except SystemExit:
                 pass  # macro without a gcode: block
     return bodies
+
+
+HOME_XY, HOME_Z_HOP = beacon_home()
 
 
 # ---------------------------------------------------------------------------#
@@ -220,6 +261,15 @@ class Sim:
         for name, vals in self.vars.items():
             p[f"gcode_macro {name}"] = vals
         p.setdefault("gcode_macro _MMU_PARK", {})["retracted_length"] = 2.0
+        # START_PRINT's variables are filled from slicer params at runtime, so they
+        # cannot be harvested from config. These are the reference cold ABS 2-colour
+        # print traced in docs/start_print_walkthrough.md.
+        p["gcode_macro START_PRINT"] = {
+            "bed_temp": 105.0, "extruder_temp": 275.0, "soak": 8,
+            "chamber_temp": 0.0, "chamber_maxtime": 15,
+            "initial_tool": 0, "tools_used": "0,1", "material": "ABS",
+            "fl_size": "154.586_158.81_232.191_278.9", "adaptive_primeline": 1,
+        }
         return p
 
     # -- gcode handling -------------------------------------------------------
@@ -284,6 +334,13 @@ class Sim:
             pass
         elif u == "M83" or u == "M82":
             pass
+        elif u == "G28":
+            # Klippain only ever issues a bare `G28 Z` inside the sequences we model.
+            # The motion that matters for zone checking is the XY travel to
+            # home_xy_position at the *current* Z, before Z is homed and hopped.
+            hx, hy = HOME_XY
+            self._move(f"G1 X{hx} Y{hy}", macro + " (G28 Z travel)")
+            self.pos[2] = HOME_Z_HOP
         elif u == "SAVE_GCODE_STATE":
             n = _param(cmdline, "NAME") or "default"
             self.states[n] = (tuple(self.pos), self.absolute)
@@ -411,7 +468,63 @@ def scen_complete_park(sim: Sim):
     sim.mark("parked on nozzle rest (print complete)")
 
 
+def scen_start_print(sim: Sim):
+    """The motion-bearing START_PRINT actions, in `startprint_actions` order.
+
+    Exists to cover the four travels into the y_max feature row (purge bucket and
+    brush) that no toolchange scenario touches: Klippain's
+    `_CONDITIONAL_MOVE_TO_PURGE_BUCKET` moves with a bare diagonal `G1 X Y` and
+    does *not* route through `_KARMAN_PARK_MOVE`, so the clear-lane rule is not
+    enforced for it — only checked here.
+
+    QGL and the bed mesh are proximity sweeps well inside the bed and are marked
+    inferred rather than simulated; likewise Happy Hare's internal load moves.
+    """
+    v = sim.vars
+    uv = v.get("_USER_VARIABLES", {})
+    px, py, pz = (uv.get("purge_bucket_xyz") or (9.0, 359.0, 5.0))
+    max_x, max_y = AXIS_MAX["x"], AXIS_MAX["y"]
+
+    # Prologue leaves the head at the beacon home position after _CG28.
+    sim.pos = [HOME_XY[0], HOME_XY[1], HOME_Z_HOP]
+
+    sim.phase = "1 bed_soak (park center-front)"
+    sim.dispatch(f"G0 X{int(max_x) / 2} Y{int(max_y) / 3} Z50 F21000", "_MODULE_HEATSOAK_BED")
+    sim.mark("bed soak → extruder_preheating → chamber_soak (no further motion)")
+
+    sim.phase = "2 clean #1 (wipe before contact probing)"
+    sim.run_macro("_MODULE_CLEAN")
+
+    sim.phase = "3 calibrate → QGL → mesh → contact_z_home"
+    sim.inferred("contact_auto_calibrate at home_xy", x=HOME_XY[0], y=HOME_XY[1], z=HOME_Z_HOP)
+    sim.mark("QGL + adaptive bed mesh (proximity sweeps, inferred)")
+    sim.inferred("contact_z_home + hop", x=HOME_XY[0], y=HOME_XY[1], z=HOME_Z_HOP)
+
+    sim.phase = "4 extruder_heating (to bucket, heat, load initial tool)"
+    sim.run_macro("_MODULE_EXTRUDER_HEATING")
+    sim.mark("M109 to print temp over the bucket")
+    sim.inferred("HH toolchange park for initial load", z=toolchange_plane(v))
+    sim.phase = "5 initial load purge (blobifier)"
+    sim.run_macro("BLOBIFIER")
+    sim.inferred("HH restores saved position", x=px, y=py, z=pz)
+
+    sim.phase = "6 purge (klippain, 30mm + retract)"
+    sim.run_macro("_MODULE_PURGE")
+
+    sim.phase = "7 clean #2 (wipe off purge remnants)"
+    sim.run_macro("_MODULE_CLEAN")
+
+    sim.phase = "8 primeline"
+    sim.run_macro("_MODULE_PRIMELINE")
+
+
+# Scenarios that need the Klippain framework macros, i.e. that only run in
+# MOUNT/on-Pi mode where the framework symlinks resolve.
+FRAMEWORK_MACROS = ("_MODULE_CLEAN", "_MODULE_EXTRUDER_HEATING", "CLEAN_NOZZLE", "PURGE")
+FRAMEWORK_SCENARIOS = ("start_print",)
+
 SCENARIOS = {
+    "start_print": ("START_PRINT action sequence (bucket + brush travels)", scen_start_print),
     "midprint_swap": ("Mid-print toolchange T0→T1 (cut → tray park → purge → resume)",
                       lambda s: scen_midprint_swap(s, shake=False)),
     "midprint_swap_shake": ("Mid-print toolchange with bucket shake",
@@ -570,6 +683,10 @@ def main() -> int:
     status = 0
     for k in keys:
         title, fn = SCENARIOS[k]
+        if k in FRAMEWORK_SCENARIOS and not all(m in bodies for m in FRAMEWORK_MACROS):
+            print(f"[{k}] skipped — Klippain framework macros not reachable "
+                  "(workstation clone; run this on the Pi or the mount)")
+            continue
         sim = Sim(vars=harvest_variables(), bodies=bodies)
         try:
             fn(sim)
