@@ -91,7 +91,7 @@ Klippain doc: <https://github.com/Frix-x/klippain/blob/main/docs/mmu.md>
 > **BLOBIFIER** macro (`purge_macro: BLOBIFIER`), which positions itself at the tray — so
 > `park_toolchange` stays `-999,-999` and the staged `0,358` park line is retired. Steps 2–4 below
 > (force_purge_standalone, wipe tower OFF, `!purge_volumes!` feed) still apply as part of the Blobifier
-> integration; the park-position swap in step 1 does NOT. Current procedure: TODAY.md / TODO.md → Blobifier.
+> integration; the park-position swap in step 1 does NOT. Current procedure: docs/runbooks/blobifier-bringup.md.
 
 Original (pre-Blobifier) plan, kept for reference. Currently **Option A**: slicer wipe tower owns purging. To switch:
 1. `mmu_macro_vars.cfg` → swap which `variable_park_toolchange` line is commented (both are staged in-file):

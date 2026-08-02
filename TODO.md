@@ -1,34 +1,198 @@
 # NightOwl Build — TODO
 
 Captured from the Todoist project **NightOwl Build** on 2026-07-08.
-Updated 2026-07-16 — cutter validated end-to-end; Blobifier bring-up is the focus.
+Updated 2026-07-25 — 🎉 **MMU is functionally complete**: cutter + Blobifier + wipe all validated by
+a 2-colour print (2026-07-24). Remaining work is tuning, safety loose ends, and relocation.
 
 ## ▶ Next up (in order)
-_Goal: verify the reworked back-left geometry, then Blobifier live, then the 🎯 print. Details in TODAY.md._
-1. **Jog verification** of the new paths (cut approach at z15, y_max lanes, bed-mesh rear-left corner).
-2. **Re-validate the cut** at the relocated depressor (`T0` → `MMU_EJECT`, flat face).
-3. **Blobifier live tests** — `BLOBIFIER PURGE_LENGTH=30` standalone, `BLOBIFIER_CLEAN` on the new gantry brush, `BLOBIFIER_SHAKE_BUCKET`, park to the nozzle rest.
-4. **HH integration** — `purge_macro: BLOBIFIER`, `force_purge_standalone: 1`, `BLOBIFIER_PARK` post-form-tip hook, `restore_xy_pos: "next"`, wipe tower OFF + `MMU_START_SETUP` purge-volume feed.
-5. 🎯 **2-color print with cutter + blobifier**.
-6. **Tune `flowguard_max_relief`** — still at the switch-era 40; walk toward ~15 now that the PSF is calibrated.
+1. **Confirm the OrcaSlicer wipe tower is OFF** — Process settings → Multimaterial → *Prime tower →
+   Enable* (uncheck). With `force_purge_standalone: 1` live, leaving it on double-purges every swap.
+2. **Bed-mesh rear-left jog check** — the one path-safety item never confirmed by hand
+   (jog to 20,330,z3 then 10,330,z3; shrink the mesh Y range if tight).
+3. **Tune `flowguard_max_relief`** — still at the switch-era 40; walk toward ~15 now the PSF is
+   calibrated. Do *after* a clean print so false-trip debugging isn't confounded.
+4. **Commit + push** the pending batch (workflow tooling, decisions.md, runbooks, hooks).
+5. **Open `/hooks` once** (or restart the session) to activate the new hooks and skills — they
+   were added after this session started, so the settings watcher hasn't picked them up.
+6. Then the next big objective: **relocate the NightOwl** (roadmap #6) — worth a `/brief`.
 
 _Resolved watch item: the 0.45 A extruder current is fine in practice — no skipping observed in real prints/purges. The NightOwl "skipping" was the gate-0 mirrored nightwatch latch not holding (fixed by a 99% reprint; see NightOwl internals for gate 1)._
 
 ## 🗺 High-level roadmap (priority order)
 _The big-picture sequence — reference this when re-prioritizing. Detailed tasks live in the sections below._
 
-1. **Finish Happy Hare setup + calibration for NightOwl** — cutter (front-left), purge (back-left bin), wipe (existing brush). Goal: **printing again**, even if slow.
-2. **Slicer configuration for Happy Hare** — toolchange g-code, wipe tower off, bed exclusions, etc.
-3. **Reprint** blobifier + brush parts as needed.
-4. **New brush** — install + configure, with park on the nozzle pad.
-5. **Blobifier** — reassemble, wire, get it working (correctness over speed for now).
-6. **Finalize NightOwl position** — relocate closer to the filament-load side; wire to printer 24 V via microfit; **re-run bowden cal** for the shorter run.
+1. [x] **Finish Happy Hare setup + calibration for NightOwl** — cutter (**back-left**), purge (**Blobifier**), wipe (**new gantry brush**). Printing again ✓
+2. [x] **Slicer configuration for Happy Hare** — toolchange g-code, purge ownership, filament slots. _(Bed exclusions still open — see Collision avoidance.)_
+3. [x] **Reprint** blobifier + brush parts as needed.
+4. [x] **New brush** — installed + configured, with park on the nozzle rest.
+5. [x] **Blobifier** — reassembled, wired, working and owning purge.
+6. **Finalize NightOwl position** — relocate closer to the filament-load side; wire to printer 24 V via microfit; **re-run bowden cal** for the shorter run.  ← *next big one*
 7. **Optimize the toolchange sequence:**
    - retract → move to cutter → cut → fast retract while fast-moving to blobifier → load + execute blobifier → shake bin → wipe nozzle → return to print.
    - tune purge amount (accounting for the pre-cut retraction).
 8. **Spoolman integration.**
 
+## Filamatrix
+### CURRENT geometry (relocated BACK-LEFT 2026-07-17): contact **15, 341** → compressed **0, 341**, cut plane **z=15** (clears the shaker arm; enforced by `min_toolchange_z: 15`). Validated by real swaps post-rework.
+- [x] wire sensors to nitehawk (pre/post-extruder switches → PB0 / PB1)
+- [x] install toolhead · install filamatrix
+- [x] ~~install depressor front-left; contact 17,36 → compressed 0.5,36~~ **superseded** — relocated back-left 2026-07-17, geometry above
+- [x] enable cutter — `form_tip_macro: _MMU_CUT_TIP` set 2026-07-14
+- [x] first flat cut verified (at `residual 35`); residual refined to 25 by hand calc
+- [x] confirmation cut at `residual 25` ✓ (2026-07-15)
+- [x] real `T0`↔`T1` swaps with the cutter ✓; 1-color print with start/end cuts ✓ *(pre-rework)*
+- [x] cut re-validated at the back-left location ✓ (exercised by the post-rework blobifier swaps)
+  ⚠️ Cut-test workflow reminder: from loaded, `MMU_EJECT` alone (cut + unload + gate release). Never `MMU_TEST_FORM_TIP` (strands tip in PTFE + hard-stamps UNLOADED → next `MMU_EJECT` errors). Desync fix: `MMU_RECOVER`.
+- [ ] **Walk `retract_length` up** 55 → 58 → 62 while cuts stay flat (smaller sliver = less purge)
+- [ ] Watch purge/flushing amounts with the cutter (cut fragment adds to what must purge)
+
+## NightOwl exterior wiring
+- [x] short term, setup dedicated 24v power brick (variable voltage unit)
+- [ ] print adapters for microfit and keystone adapters (hex inserts)
+- [x] order usb port / cable for hex insert
+- [ ] cut and wire barrel jack connector
+- [ ] wire microfit wire internally to the printer
+
+## Blobifier
+### Note: The bucket was reassembled and the optimum engagement point for the shaker arm is X = 3.0 mm and Z = 3.0 mm (SB is cradled within the shaker arm just right!)
+- [x] Assemble blobifier servo assembly - post-rebuild from new printed parts, hot glue the connect in place 
+- [x] Assemble bucket - post-rebuild from new printed parts
+- [x] Wire up servo + bucket switch to Leviathan and buck converter
+- [x] Determine shim height required and print it
+- [x] Adjust SB shaker mount for shimmed servo height (shim height 5.5mm)
+- [x] Reprint shaker arm 4 mm taller
+- [x] Print wider bed plate version of the mount (5 mm wider)
+- [x] Print shim 1 mm shorter
+- [x] Reprint the base due to damage to the existing one (cracked attachment last time, consider making the design more robust)
+- [x] Install and wire up buck converter for servo power (5V)
+- [x] Install base and bucket assembly in printer
+- [x] Test servo operation and bucket switch operation
+- [x] Install servo arm and sliding tray
+- [x] Test servo with tray attached
+- [x] Update blobifier config in klipper / happy-hare
+- [x] Test blobifier operation with tray attached
+- [ ] **Wire dedicated 2nd ground to the Leviathan** — bucket-switch ground currently returns through the buck converter (works but noise-susceptible). Blocked on hardware: the base only fits a 4-pin JST, so a 5th conductor needs a base mod + reprint. Do together with a base revision (also: make the cracked attachment more robust).
+
+
+## Nozzle brush
+### As configured (authoritative — these are the live values): brush **x53–88** at **y_max**, centre 70.5 (`variable_brush_xyz: 70.5, 359, 1`); nozzle rest **x=45, y=359** (`park_pause` / `park_complete` / `SWAP`).
+### Gantry-mounted ⇒ Z tracks the toolhead, so only the X slide seats/unseats the nozzle; approach y_max via the clear lanes (15<x<40 or x>95), never head-on.
+- [x] Fill with RTV and let cure
+- [x] Assemble unit
+- [x] Install in printer
+- [x] Configure brush position in klipper / happy-hare (position in notes above)
+- [x] Configure nozzle rest position in klipper / happy-hare (position in notes above)
+- [x] Test brush operation
+- [x] Test nozzle rest operation
+- [x] Reprint vertical mount (no change, broke the first one)
+
+## NightOwl internals
+- [x] connect endstops and test them in klipper (all 7 switches)
+- [x] connect extruders and test them in klipper
+- [x] plumb the ptfe lines (gate → extruder) — needed before bowden calibration / full loads
+- [x] replace mirrored latch with althernative versions that I printed (existing version is coming unlatched and is not reliable) — gate 0 fixed with a **99%-scale** reprint
+- [ ] *(optional)* print + replace the **gate-1** latch too — no failures yet, but measurements say ~**99.5% scale**; do preemptively if it starts slipping
+- [x] properly adjust the extruder idler tension (didn't actually follow the instructions, just tightened it down some arbritray amount)
+- [ ] relocate NightOwl to its permanent home (closer to the filament-load side) — pairs with the re-plumb + bowden re-cal below and the microfit 24V wiring
+- [ ] re-plumb the ptfe and recalibrate the bowden lengths (MMU_CALIBRATE_BOWDEN) [only for final installation once everything works and there is a good location for the nightowl]
+
+## Filament sensor (BTT SFS v2) — REMOVED
+- [x] ~~create extension cable / wire to Leviathan (PC0 runout, PC1 motion)~~
+- [x] ~~configure in klipper as `[mmu_encoder]` + `[filament_switch_sensor]`~~
+- **Removed 2026-07-14** — drag corrupted the sync-feedback signal. Config commented out (not deleted); PC0/PC1 free. Re-add later **upstream** of the sync-feedback sensor after MMU relocation.
+
+## Klipper / config changes pending (from the rewire)
+- [x] **X endstop relocation:** override `[stepper_x] endstop_pin: ^toolhead:PROBE_INPUT` (PC15 on Nitehawk); free PC1 for SFS motion — must be one atomic change with the SFS motion sensor
+- [x] **Recalibrate `position_endstop`** for X (new toolhead mount) and Y (new location, still PC2) — home carefully, watch homing direction (crash risk on X)
+- [x] **SFS v2 config:** `[filament_switch_sensor]` on PC0 + `[filament_motion_sensor]` on PC1; decide role and gate it OFF during MMU moves to avoid false runouts (Happy Hare interaction)
+- [x] **Verify PC15 (Nitehawk HV probe port)** works as a mechanical endstop via `QUERY_ENDSTOPS`
+- [x] **Pre/post-extruder sensors in HH:** `extruder_switch_pin: ^toolhead:MCU_ENDSTOP_X` (PB0), `toolhead_switch_pin: ^toolhead:MCU_ENDSTOP_Y` (PB1); check polarity via `MMU_SENSORS`
+- [x] **Enable `extruder_homing_endstop: extruder`** now that the extruder-entry sensor exists (unblocks auto bowden + toolhead calibration)
+
+## Happy Hare — calibration & tuning
+- [x] Gear rotation distance calibration (both gates); loads/ejects verified
+- [x] Bowden length calibration (`MMU_CALIBRATE_BOWDEN`) — **preliminary** long run; re-do when relocated (see NightOwl internals)
+- [x] **Toolhead calibration** — done clean+dirty; auto-cal unreliable (0.45 A extruder slip) so measured manually. Values in `mmu_parameters.cfg` 238–240 + `residual 5`.
+- [x] **Test tool changes** (`T0` / `T1`) — both gates swap correctly with tip forming.
+- [x] **FlowGuard** — active via the **PSF** proportional sync-feedback sensor (`flowguard_enabled: 1`); encoder path (`flowguard_encoder_mode`) stays 0 (encoderless). `flowguard_max_relief` still 40 → walk toward ~15 (Next up #3).
+- [x] **Switch purging to HH-owned via BLOBIFIER** — *supersedes the old "Option B / `_MMU_PURGE` @ 0,358" plan*: Blobifier positions itself, so `park_toolchange` stays `-999,-999` (see `docs/decisions.md`).
+  - [x] `purge_macro: BLOBIFIER` + `force_purge_standalone: 1` in `mmu_parameters.cfg`
+  - [x] `variable_user_post_form_tip_extension: "BLOBIFIER_PARK"` + `restore_xy_pos: "next"`; staged `0,358` park comment retired
+  - [ ] OrcaSlicer wipe tower **OFF** ← *confirm; required now that `force_purge_standalone: 1`, or you double-purge*
+  - [x] Purge matrix fed via `MMU_START_SETUP ... PURGE_VOLUMES=!purge_volumes!` (verified in the machine start g-code)
+- [x] **Filament cutting (Filamatrix)** — ENABLED; geometry now **back-left**: pin `15,341` → compressed `0,341` (X-axis cut) at **z15**, `blade_pos 69`, `retract_length 55` (walk toward 62), `residual 25`, `form_tip_macro: _MMU_CUT_TIP`. Flat cut + real swaps verified.
+- [x] **Nozzle wipe** — post-toolchange wipe runs on the **new gantry brush** (x53–88, `brush_top: None`) via `BLOBIFIER_CLEAN`; tested.
+- [x] **Blobifier configuration** — servo, bucket switch, tray, shake all configured and tested.
+- [ ] Filament change tuning (retraction amounts, blob tuning, purge volumes under real prints)
+- [ ] **Collision avoidance** — *no Klipper obstacle model exists; enforced by you:*
+  - ⚠️ **FRONT-LEFT KEEP-OUT, PERMANENT (~x<10, y<17, all Z):** the Filamatrix **cutter arm strikes the front-left XY idler** — toolhead geometry, applies to every move.
+  - ⚠️ **BACK-LEFT ZONE (x<~20, y>~335, below z15):** blobifier structures + relocated depressor. Enter only via the managed macros; manual jogs at low Z stay out.
+  - ⚠️ **y_max FEATURE ROW** (tray x~2–17, shaker x4, rest x45, brush x53–88, all gantry/frame at y_max): approach in **+Y only through the clear lanes 15<x<40 or x>95**, then slide in X. `_KARMAN_PARK_MOVE` + retargeted CLEAN_NOZZLE handle this for parks/wipes.
+  - [x] QGL (max y 275) + Y-homing (x≈345) verified clear from config
+  - [ ] **Bed-mesh rear-left jog check** — jog nozzle to (20, 330, z3) then (10, 330, z3) and eyeball clearance to the depressor mount + blobifier base (mesh probing rows can reach nozzle y≈332 at low Z)
+  - [ ] **Slicer bed exclusion** — notch the bed polygon: front-left idler corner + back-left blobifier/depressor zone
+  - [ ] **Vet remaining macro positions** (prime line, Beacon contact, purge/clean during START_PRINT) against the new zones
+- [x] 🎯 **First multi-material print** — DONE 2026-07-14 (tip forming, Option A slicer purge; 7 toolchanges clean)
+- [x] 🎯 **Multi-material print WITH cutter + Blobifier** — DONE 2026-07-24. Validates the full chain: cut at z15 → unload → load → Blobifier purge → gantry-brush wipe → resume. Runbook: `docs/runbooks/done/blobifier-bringup.md`
+
+## Slicer configuration (Happy Hare)
+_Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.md` (the authoritative record)._
+- [x] Slicer tip-forming / ramming disabled; SEMM + extruder-tab toolchange retraction zeroed
+- [x] MMU toolchange g-code (`T[next_extruder]`), start/end/layer g-code (Klippain-wrapped, no `MMU_END`)
+- [x] Wipe/prime tower ON (Option A — slicer owns purge); flushing-volume multiplier guidance recorded
+- [x] Per-gate filament slots + colors/temps; chamber temp **0** in MMU filament profiles (chamber-soak trap)
+- [x] Slice + run a 2-color test model end-to-end 🎉
+- [ ] Bed-shape exclusions (see Collision avoidance) — front-left keep-out not yet notched into the bed polygon
+
+## Toolchange optimization (later)
+- [ ] Implement the fast sequence: retract → cutter → cut → fast-retract while moving to blobifier → blobifier purge → shake bin → wipe → resume
+- [ ] Tune purge volume — account for the pre-cut retraction so we don't over/under-purge
+- [ ] Tune **PSF** sync-feedback behaviour under real prints (incl. `flowguard_max_relief`)
+
+## Spoolman integration (later)
+- [ ] Install / enable Spoolman + Moonraker integration
+- [ ] Map HH gates → Spoolman spools
+- [ ] Verify filament usage tracking across toolchanges
+
+## Pin reference (new peripherals)
+| Device | MCU | Pin |
+|---|---|---|
+| ~~SFS v2 runout~~ (removed) | Leviathan | PC0 (`RUNOUT_SENSOR`) — **free** |
+| Blobifier bucket switch | Leviathan | PC1 (`MCU_STOP_X` → `BLOBIFIER_BUCKET`, NC→GND, was SFS motion) |
+| Y endstop | Leviathan | PC2 (unchanged) |
+| X endstop (relocated) | Nitehawk | PC15 (`PROBE_INPUT` / HV) |
+| Pre-extruder switch | Nitehawk | PB0 (`MCU_ENDSTOP_X`) |
+| Post-extruder switch | Nitehawk | PB1 (`MCU_ENDSTOP_Y`) |
+| Blobifier servo | Leviathan | PC3 (`MCU_STOP_Z` → `BLOBIFIER_SERVO`, Z-STOP header; 5V from 24V buck) |
+| ~~Blobifier servo (old plan)~~ | Leviathan | PF5 (EXT_7) — **free** |
+
+---
+
+# 📖 History — completed work
+
+_Reference only; nothing below is actionable. Newest first. The durable **why** behind these
+decisions lives in `docs/decisions.md`; per-objective execution records are in
+`docs/runbooks/done/`._
+
 ## ✅ Recently completed
+
+### 2026-07-25 — Blobifier live, standalone-swap workflow, and session tooling
+- **Blobifier fully live**: base/bucket installed, servo + switch tested, arm/tray fitted, geometry
+  configured, and **purge ownership handed over** (`purge_macro: BLOBIFIER`,
+  `force_purge_standalone: 1`, `BLOBIFIER_PARK` hook, `restore_xy_pos: "next"`). Real swaps verified.
+- **Fixed the `-999` park-sentinel crash**: HH passes its "no move" sentinel to a
+  `user_park_move_macro` **unfiltered** — `_KARMAN_PARK_MOVE` now handles it (was aborting every
+  toolchange park with "Move out of range").
+- **Standalone-swap workflow** (`docs/mmu_standalone_swap_plan.md`): `SWAP TOOL=n` parks on the rest
+  *before* swapping so heat-up ooze lands in the RTV cup and HH's restore returns there; hotend now
+  turns off after bench ops; idle timeout parks on the rest. Caught and fixed a guard bug that would
+  have shut the hotend off mid-START_PRINT on **every** print.
+- **Nozzle LEDs go white during purge** so colour change is visible (were red — purge runs in
+  Klippain's `heating` LED state).
+- **Session tooling**: `tools/visualize_toolchange.py` (offline path simulator + keep-out checker),
+  three hooks in `.claude/` (git-on-mount guard, framework-edit guard, auto-run the visualizer),
+  `docs/decisions.md` (the *why* log), and the `/start` · `/brief` · `/done` session model with
+  `docs/runbooks/` (TODAY.md retired into it).
 
 ### 2026-07-25 — TurtleNeck → PSF proportional sync-feedback sensor
 - **Swapped the dual-switch TurtleNeck for a PSF (Proportional Sync-Feedback) analog sensor.** Wiring validated: signal → **gpio26 (ADC0)** on the ERB EXTRA PINS header, power → **3.3 V**, common → GND.
@@ -85,139 +249,3 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 - TurtleNeck dual-switch sync feedback configured (stand-in until the proportional PSF arrives). **Superseded 2026-07-25 — PSF fitted, see below.**
 - Filamatrix + beefy depressor installed; pre/post-extruder filament switches wired to the Nitehawk.
 - BTT SFS v2 wired to the Leviathan (runout + motion).
-
-## Filamatrix
-### Depressor relocated BACK-LEFT 2026-07-17: contact **15, 341** → compressed **0, 341**, cut plane **z=15** (clears shaker arm; enforced via `min_toolchange_z: 15`). Re-validate the cut at the new location!
-- [x] wire sensors to nitehawk (pre/post-extruder switches → PB0 / PB1)
-- [x] install toolhead
-- [x] install filamatrix
-- [x] install beefy depressor — front-left (keeps the back-left corner free for the purge bin @ 0,358)
-- [x] measure depressor contact point → 17, 36 (staged in `mmu_macro_vars.cfg`)
-- [x] measure fully-compressed point → 0.5, 36 (dry-run verified)
-- [x] enable cutter — `form_tip_macro: _MMU_CUT_TIP` set 2026-07-14
-- [x] first flat cut verified (at `residual 35`); residual refined to 25 by hand calc
-- [x] confirmation cut at `residual 25` ✓ (2026-07-15)
-- [x] real `T0`↔`T1` swaps with the cutter ✓; 1-color print with start/end cuts ✓
-  ⚠️ Cut-test workflow reminder: from loaded, `MMU_EJECT` alone (cut + unload + gate release). Never `MMU_TEST_FORM_TIP` (strands tip in PTFE + hard-stamps UNLOADED → next `MMU_EJECT` errors). Desync fix: `MMU_RECOVER`.
-- [ ] **Walk `retract_length` up** 55 → 58 → 62 while cuts stay flat (smaller sliver = less purge)
-- [ ] Watch purge/flushing amounts with the cutter (cut fragment adds to what must purge)
-
-## NightOwl exterior wiring
-- [x] short term, setup dedicated 24v power brick (variable voltage unit)
-- [ ] print adapters for microfit and keystone adapters (hex inserts)
-- [x] order usb port / cable for hex insert
-- [ ] cut and wire barrel jack connector
-- [ ] wire microfit wire internally to the printer
-
-## Blobifier
-### Note: The bucket was reassembled and the optimum engagement point for the shaker arm is X = 3.0 mm and Z = 3.0 mm (SB is cradled within the shaker arm just right!)
-- [x] Assemble blobifier servo assembly - post-rebuild from new printed parts, hot glue the connect in place 
-- [x] Assemble bucket - post-rebuild from new printed parts
-- [x] Wire up servo + bucket switch to Leviathan and buck converter
-- [x] Determine shim height required and print it
-- [x] Adjust SB shaker mount for shimmed servo height (shim height 5.5mm)
-- [x] Reprint shaker arm 4 mm taller
-- [x] Print wider bed plate version of the mount (5 mm wider)
-- [x] Print shim 1 mm shorter
-- [x] Reprint the base due to damage to the existing one (cracked attachment last time, consider making the design more robust)
-- [x] Install and wire up buck converter for servo power (5V)
-- [ ] Install base and bucket assembly in printer
-- [ ] Test servo operation and bucket switch operation
-- [ ] Install servo arm and sliding tray
-- [ ] Test servo with tray attached
-- [ ] Update blobifier config in klipper / happy-hare
-- [ ] Test blobifier operation with tray attached
-- [ ] **Wire dedicated 2nd ground to the Leviathan** — bucket-switch ground currently returns through the buck converter (works but noise-susceptible). Blocked on hardware: the base only fits a 4-pin JST, so a 5th conductor needs a base mod + reprint. Do together with a base revision (also: make the cracked attachment more robust).
-
-
-## Nozzle brush
-### Note: The brush y position is -2 mm from max position, x position right hand side of brush is at 87 mm, left is 53 mm, 34 mm wide.
-## Note: nozzle rest position is at x = 44 mm, same y as brush
-- [x] Fill with RTV and let cure
-- [x] Assemble unit
-- [x] Install in printer
-- [ ] Configure brush position in klipper / happy-hare (position in notes above)
-- [ ] Configure nozzle rest position in klipper / happy-hare (position in notes above)
-- [ ] Test brush operation
-- [ ] Test nozzle rest operation
-- [ ] Reprint vertical mount (no change, broke the first one)
-
-## NightOwl internals
-- [x] connect endstops and test them in klipper (all 7 switches)
-- [x] connect extruders and test them in klipper
-- [x] plumb the ptfe lines (gate → extruder) — needed before bowden calibration / full loads
-- [x] replace mirrored latch with althernative versions that I printed (existing version is coming unlatched and is not reliable) — gate 0 fixed with a **99%-scale** reprint
-- [ ] *(optional)* print + replace the **gate-1** latch too — no failures yet, but measurements say ~**99.5% scale**; do preemptively if it starts slipping
-- [x] properly adjust the extruder idler tension (didn't actually follow the instructions, just tightened it down some arbritray amount)
-- [ ] relocate NightOwl to its permanent home (closer to the filament-load side) — pairs with the re-plumb + bowden re-cal below and the microfit 24V wiring
-- [ ] re-plumb the ptfe and recalibrate the bowden lengths (MMU_CALIBRATE_BOWDEN) [only for final installation once everything works and there is a good location for the nightowl]
-
-## Filament sensor (BTT SFS v2) — REMOVED
-- [x] ~~create extension cable / wire to Leviathan (PC0 runout, PC1 motion)~~
-- [x] ~~configure in klipper as `[mmu_encoder]` + `[filament_switch_sensor]`~~
-- **Removed 2026-07-14** — drag corrupted the sync-feedback signal. Config commented out (not deleted); PC0/PC1 free. Re-add later **upstream** of the sync-feedback sensor after MMU relocation.
-
-## Klipper / config changes pending (from the rewire)
-- [x] **X endstop relocation:** override `[stepper_x] endstop_pin: ^toolhead:PROBE_INPUT` (PC15 on Nitehawk); free PC1 for SFS motion — must be one atomic change with the SFS motion sensor
-- [x] **Recalibrate `position_endstop`** for X (new toolhead mount) and Y (new location, still PC2) — home carefully, watch homing direction (crash risk on X)
-- [x] **SFS v2 config:** `[filament_switch_sensor]` on PC0 + `[filament_motion_sensor]` on PC1; decide role and gate it OFF during MMU moves to avoid false runouts (Happy Hare interaction)
-- [x] **Verify PC15 (Nitehawk HV probe port)** works as a mechanical endstop via `QUERY_ENDSTOPS`
-- [x] **Pre/post-extruder sensors in HH:** `extruder_switch_pin: ^toolhead:MCU_ENDSTOP_X` (PB0), `toolhead_switch_pin: ^toolhead:MCU_ENDSTOP_Y` (PB1); check polarity via `MMU_SENSORS`
-- [x] **Enable `extruder_homing_endstop: extruder`** now that the extruder-entry sensor exists (unblocks auto bowden + toolhead calibration)
-
-## Happy Hare — calibration & tuning
-- [x] Gear rotation distance calibration (both gates); loads/ejects verified
-- [x] Bowden length calibration (`MMU_CALIBRATE_BOWDEN`) — **preliminary** long run; re-do when relocated (see NightOwl internals)
-- [x] **Toolhead calibration** — done clean+dirty; auto-cal unreliable (0.45 A extruder slip) so measured manually. Values in `mmu_parameters.cfg` 238–240 + `residual 5`.
-- [x] **Test tool changes** (`T0` / `T1`) — both gates swap correctly with tip forming.
-- [x] **FlowGuard** — active encoderless via the TurtleNeck tension switches (`flowguard_enabled: 1`). Encoder path (`flowguard_encoder_mode`) stays 0. Tune `flowguard_max_relief` (currently 40) if false trips.
-- [ ] **Switch purging to HH-owned via BLOBIFIER** — *supersedes the old "Option B / `_MMU_PURGE` @ 0,358" plan*: Blobifier positions itself, so `park_toolchange` stays `-999,-999` and the staged `0,358` comment in `mmu_macro_vars.cfg` gets retired. Required together (part of Blobifier integration, see TODAY.md):
-  - [ ] `purge_macro: BLOBIFIER` + `force_purge_standalone: 1` in `mmu_parameters.cfg`
-  - [ ] `variable_user_post_form_tip_extension: "BLOBIFIER_PARK"` + `restore_xy_pos: "next"` in `mmu_macro_vars.cfg`; retire the staged `0,358` park comment
-  - [ ] OrcaSlicer wipe tower **OFF**
-  - [ ] Feed the purge matrix (`MMU_START_SETUP ... PURGE_VOLUMES=!purge_volumes!` before `START_PRINT`) — else Blobifier falls back to its default `purge_length` (150mm). See `docs/mmu_purge_volume.md`.
-- [x] **Filament cutting (Filamatrix)** — CONFIGURED + ENABLED 2026-07-14: pin 17,36 → compressed 0.5,36 (X-axis cut), `blade_pos 69`, `retract_length 55` (testing margin; walk toward 62), `residual 25`, `form_tip_macro: _MMU_CUT_TIP`. Flat cut verified at residual 35; 25-confirmation + swap test pending (see Filamatrix section).
-- [ ] **Nozzle wipe** — configure the post-toolchange wipe on the **existing** brush (the new brush comes later)
-- [ ] Blobifier configuration — servo control, bucket switch, bucket shake
-- [ ] Filament change tuning (retraction amounts, blob tuning, etc.)
-- [ ] **Collision avoidance** — *no Klipper obstacle model exists; enforced by you:*
-  - ⚠️ **FRONT-LEFT KEEP-OUT, PERMANENT (~x<10, y<17, all Z):** the Filamatrix **cutter arm strikes the front-left XY idler** — toolhead geometry, applies to every move.
-  - ⚠️ **BACK-LEFT ZONE (x<~20, y>~335, below z15):** blobifier structures + relocated depressor. Enter only via the managed macros; manual jogs at low Z stay out.
-  - ⚠️ **y_max FEATURE ROW** (tray x~2–17, shaker x4, rest x45, brush x53–88, all gantry/frame at y_max): approach in **+Y only through the clear lanes 15<x<40 or x>95**, then slide in X. `_KARMAN_PARK_MOVE` + retargeted CLEAN_NOZZLE handle this for parks/wipes.
-  - [x] QGL (max y 275) + Y-homing (x≈345) verified clear from config
-  - [ ] **Bed-mesh rear-left jog check** — jog nozzle to (20, 330, z3) then (10, 330, z3) and eyeball clearance to the depressor mount + blobifier base (mesh probing rows can reach nozzle y≈332 at low Z)
-  - [ ] **Slicer bed exclusion** — notch the bed polygon: front-left idler corner + back-left blobifier/depressor zone
-  - [ ] **Vet remaining macro positions** (prime line, Beacon contact, purge/clean during START_PRINT) against the new zones
-- [x] 🎯 **First multi-material print** — DONE 2026-07-14 (tip forming, Option A slicer purge; 7 toolchanges clean)
-- [ ] 🎯 **First multi-material print WITH cutter** — same test, cutting live; validates cut → unload → load → purge chain + fragment purging
-
-## Slicer configuration (Happy Hare)
-_Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.md` (the authoritative record)._
-- [x] Slicer tip-forming / ramming disabled; SEMM + extruder-tab toolchange retraction zeroed
-- [x] MMU toolchange g-code (`T[next_extruder]`), start/end/layer g-code (Klippain-wrapped, no `MMU_END`)
-- [x] Wipe/prime tower ON (Option A — slicer owns purge); flushing-volume multiplier guidance recorded
-- [x] Per-gate filament slots + colors/temps; chamber temp **0** in MMU filament profiles (chamber-soak trap)
-- [x] Slice + run a 2-color test model end-to-end 🎉
-- [ ] Bed-shape exclusions (see Collision avoidance) — front-left keep-out not yet notched into the bed polygon
-
-## Toolchange optimization (later)
-- [ ] Implement the fast sequence: retract → cutter → cut → fast-retract while moving to blobifier → blobifier purge → shake bin → wipe → resume
-- [ ] Tune purge volume — account for the pre-cut retraction so we don't over/under-purge
-- [ ] Tune sync-feedback (TurtleNeck) behavior under real prints
-
-## Spoolman integration (later)
-- [ ] Install / enable Spoolman + Moonraker integration
-- [ ] Map HH gates → Spoolman spools
-- [ ] Verify filament usage tracking across toolchanges
-
-## Pin reference (new peripherals)
-| Device | MCU | Pin |
-|---|---|---|
-| ~~SFS v2 runout~~ (removed) | Leviathan | PC0 (`RUNOUT_SENSOR`) — **free** |
-| Blobifier bucket switch | Leviathan | PC1 (`MCU_STOP_X` → `BLOBIFIER_BUCKET`, NC→GND, was SFS motion) |
-| Y endstop | Leviathan | PC2 (unchanged) |
-| X endstop (relocated) | Nitehawk | PC15 (`PROBE_INPUT` / HV) |
-| Pre-extruder switch | Nitehawk | PB0 (`MCU_ENDSTOP_X`) |
-| Post-extruder switch | Nitehawk | PB1 (`MCU_ENDSTOP_Y`) |
-| Blobifier servo | Leviathan | PC3 (`MCU_STOP_Z` → `BLOBIFIER_SERVO`, Z-STOP header; 5V from 24V buck) |
-| ~~Blobifier servo (old plan)~~ | Leviathan | PF5 (EXT_7) — **free** |
