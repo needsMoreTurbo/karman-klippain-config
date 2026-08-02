@@ -223,7 +223,10 @@ class Sim:
         return p
 
     # -- gcode handling -------------------------------------------------------
-    _WORD = re.compile(r"([XYZEF])\s*(-?\d+\.?\d*)", re.I)
+    # The sign group must accept a leading '+': Klippain's and Blobifier's wipe
+    # loops emit `G1 X+35`, and a '-'-only pattern drops those moves silently —
+    # which made a one-sided wipe look clean.
+    _WORD = re.compile(r"([XYZEF])\s*([-+]?\d+\.?\d*)", re.I)
 
     def _move(self, line: str, macro: str):
         words = {k.upper(): float(v) for k, v in self._WORD.findall(line)}
