@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/tools/hooks/guard-git.sh\"",
+            "timeout": 10,
+            "statusMessage": "Checking git is going via SSH..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/tools/hooks/guard-framework.sh\"",
+            "timeout": 10,
+            "statusMessage": "Checking target is not a framework file..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/tools/hooks/check-toolchange.sh\"",
+            "timeout": 60,
+            "statusMessage": "Re-checking toolchange keep-out zones..."
+          }
+        ]
+      }
+    ]
+  }
+}
