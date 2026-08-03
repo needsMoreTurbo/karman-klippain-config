@@ -18,7 +18,7 @@ with filament parked at the gates.
 | Piece | File | Notes |
 |---|---|---|
 | `START_PRINT` + `_MODULE_*` actions | `macros/base/start_print.cfg` (Klippain framework) | The orchestrator. Modular: runs a list of named actions in order. |
-| Action list (custom) | `overrides.cfg` → `_USER_VARIABLES.startprint_actions` | Ours. Identical to the Beacon-contact default **plus `nozzle_expansion`** inserted after `extruder_heating`. |
+| Action list (custom) | `overrides.cfg` → `_USER_VARIABLES.startprint_actions` | Ours. The Beacon-contact default **plus `nozzle_expansion`** after `extruder_heating`, **minus `purge`** (dropped 2026-08-02 — see step 26). |
 | Tunables (temps, soak, brush/purge positions, materials) | `variables.cfg` | Ours. |
 | MMU glue (`_KLIPPAIN_MMU_INIT`, `_KLIPPAIN_MMU_LOAD_INITIAL_TOOL`) | `macros/hardware_functions/mmu.cfg` (Klippain framework) | Bridges START_PRINT and Happy Hare. |
 | Actual filament handling (`MMU_CHECK_GATE`, `MMU_CHANGE_TOOL`, …) | Happy Hare (`mmu/base/*.cfg` + `~/Happy-Hare`) | NightOwl, 2 gates, type-B (per-gate gear steppers, VirtualSelector), encoderless, TurtleNeck sync-feedback buffer, Filamatrix cutter. |
@@ -63,7 +63,7 @@ print while everything is still cold.
 12. **`MMU_HOME` skipped** — MMU is already homed and `mmu_force_homing_in_start_print: False`. (With the NightOwl's VirtualSelector there's no physical selector to home anyway.)
 13. **Gate check** — `TOOLS_USED="0,1"` is valid and is a multi-tool list, so the multi-filament branch runs:
     - Console: *"You are planning a multi-filament print. The tool(s): 0,1 will be checked…"*
-    - `MMU_UNLOAD` — safety unload in case a tool was left loaded; with the extruder empty it's a no-op.
+    - `MMU_UNLOAD` — safety unload in case a tool was left loaded. Since `mmu_unload_on_end_print` is now `False` this is **no longer a no-op on multi-tool prints**: the previous print left filament in the hot end, and this ejects it back to the gate (~1 min) before the gate check.
     - **`MMU_CHECK_GATE TOOLS=0,1`** — for each gate, HH briefly drives that gate's gear stepper until the post-gear (`mmu_gear`) sensor proves filament is present, then parks it back (`gate_parking_distance: 0`). Updates the gate map (Available/Empty). This is the step that catches "you forgot to load gate 1" *before* 10+ minutes of heating.
     - `MMU_SELECT TOOL=0` — re-selects the initial tool (instant on a type-B MMU).
 14. **Early error check skipped** (`mmu_check_errors_on_start_print: False`).
@@ -73,11 +73,12 @@ print while everything is still cold.
 ## Phase 2 — The action loop
 
 `startprint_actions` (from `overrides.cfg`) runs in this order. It is the standard
-Beacon-contact sequence with **`nozzle_expansion`** added after `extruder_heating`:
+Beacon-contact sequence with **`nozzle_expansion`** added after `extruder_heating`
+and **`purge` removed**:
 
 > bed_soak → extruder_preheating → chamber_soak → clean → contact_auto_calibrate →
 > tilt_calib → bedmesh → contact_z_home → extruder_heating → **nozzle_expansion** →
-> purge → clean → primeline
+> clean → primeline
 
 ### 17. `bed_soak` — bed to 105 °C + 8 min soak
 Bed is cold (< 105−8 °C), so the full branch runs: toolhead moves to center-front
@@ -95,17 +96,30 @@ warm enough for repeatable contact, cool enough (< 180 max) not to ooze or brand
 the PEI.
 
 ### 19. `chamber_soak` — no-op this run
-`CHAMBER=0` → the module's `CHAMBER_TEMP > 0` test fails immediately. (With a
-setpoint it would park center-front and poll the toolhead `Chamber` sensor
-minute-by-minute up to `CHAMBER_MAXTIME`, default 15 min.)
+`CHAMBER=0` → the module's `CHAMBER_TEMP > 0` test fails immediately. It never
+heats anything (there is no chamber heater); with a setpoint it parks center-front
+and *waits*, polling the toolhead `Chamber` sensor in 1-minute steps for up to
+`CHAMBER_MAXTIME` — which is `range(1, 15)` = **14** minutes, then gives up and
+prints anyway. `print_default_chamber_temp_tolerance` is **2.0** (was 0.0, which
+demanded an exact hit on a noisy toolhead sensor and so burned the full timeout
+every time). Keep any slicer `CHAMBER` setpoint **≤ ~55 °C**: `bed_fans.cfg`
+throttles the under-bed fans above `chamber_max` (60 °C), and those fans are what
+warms the chamber, so a higher setpoint fights the fan controller.
 
 ### 20. `clean` (first of two) — brush the cold-ish nozzle
-`force_homing_before_brush: True` → `G28 Z` first (now that the axis is homed this
-uses Beacon **proximity**, per `home_method_when_homed: proximity` — no bed touch).
-Then: accel drops to 1500, toolhead moves via the purge bucket (50, 357) to the
-brush (135, 356, Z1) and does 6 X-axis wipe pairs across the 35 mm brush at
+No `G28 Z` — `force_homing_before_brush` is **False** (see step 27 and
+`docs/decisions.md`). Accel drops to 1500, then our override of
+`_CONDITIONAL_MOVE_TO_PURGE_BUCKET` **lifts Z to `bucket_travel_safe_z` (20 mm)
+before** the diagonal across the bed, moves via the purge bucket (9, 359, Z5) to
+the brush (70.5, 359, Z1), and does 6 X-axis wipe pairs across the 35 mm brush at
 100 mm/s. Purpose: scrape any debris off the nozzle **before** it touches the bed
 for calibration. At 150 °C leftover filament is soft enough to wipe.
+
+The lift matters because this is the **only** action that runs on a gantry which
+has not been levelled yet (`tilt_calib` is still two steps away). With one Z-motor
+corner low by 30 mm, the nozzle can sit up to 17 mm below commanded Z over the
+plate; Klippain's bucket move is a bare diagonal that does not route through
+`_KARMAN_PARK_MOVE`, so nothing else enforces a floor.
 
 ### 21. `contact_auto_calibrate` — Beacon model calibration
 Wrapped in the contact guard (`_PROBE_ENTER_CONTACT_GUARD`): target is 150 ≤ 180 so
@@ -136,8 +150,22 @@ and after the mesh. This touch is the Z reference the first layer is printed
 against. Ends with a 5 mm Z-hop.
 
 ### 25. `extruder_heating` — 275 °C + initial tool load
-- Toolhead moves over the purge bucket (50, 357, Z5) so all heating ooze and the
-  upcoming load happen over the bin.
+- Toolhead moves over the purge bucket (9, 359, Z5) so all heating ooze and the
+  upcoming load happen over the bin. (Same safe-Z lift as step 20 — harmless
+  insurance here, since QGL has already run.)
+- **Whether a load happens depends on `TOOLS_USED`, not on `mmu_unload_on_end_print`:**
+  - *Multi-tool print* (`TOOLS_USED="0,1"`): step 13's guard is
+    `printer.mmu.tool|string != TOOLS_USED` → `"0" != "0,1"` → true, so
+    `_KLIPPAIN_MMU_INIT` **unloads at print start regardless of what END_PRINT did**.
+    A full load runs here, and Blobifier purges with it.
+  - *Single-tool print* (`TOOLS_USED="0"`) with T0 already loaded: both branches in
+    step 13 evaluate false, nothing unloads, and `MMU_CHANGE_TOOL TOOL=0 STANDALONE=1`
+    reports *"Tool T0 is already loaded"* and returns — **no load, no Blobifier purge.**
+    The prime line is then the only purge in the entire sequence.
+
+  Since `mmu_unload_on_end_print` is `False` (2026-08-02), the second case leaves the
+  filament sitting in the hot end through cooldown. The first case still unloads — the
+  flag only moved *where* that happens, from END_PRINT to here.
 - `M109 S275` — blocking heat to print temperature.
 - `_KLIPPAIN_MMU_LOAD_INITIAL_TOOL` → **`MMU_CHANGE_TOOL TOOL=0 STANDALONE=1`**
   (`STANDALONE=1` = don't expect slicer tip-forming gcode; irrelevant here anyway
@@ -169,23 +197,26 @@ END_PRINT removes exactly the applied amount. **Position in the list matters**: 
 must come after `extruder_heating` (so `extruder.target` is the real print temp)
 and after the contact steps (so it stacks on the final Z origin).
 
-### 27. `purge` — 30 mm into the bucket
-`PURGE TEMP=275`: over the bucket, extrude 30 mm at F150, then retract 20 mm
-(`retract_length` from `variables.cfg` — a deep retract that pulls the melt out of
-the heatbreak to stop oozing), then wait 10 s (`purge_ooze_time`) to let the
-nozzle finish drooling. This clears the load ooze and pressurizes fresh ABS
-through the nozzle.
+### 27. ~~`purge`~~ — **removed 2026-08-02**
+Klippain's `purge` action used to sit here: 30 mm into the bucket, then a 20 mm
+retract, then a 10 s ooze wait. It was dropped as pure waste — Blobifier owns
+purging when a load happens, and the prime line re-primes the nozzle when one
+doesn't. It could not be removed on its own, because `PRIMELINE` unretracts
+**unconditionally** and that unretract existed to refill *this* step's retract;
+`unretract_length` was resized from 23 → 5 in the same change. See
+`docs/decisions.md`.
 
-### 28. `clean` (second) — brush off the purge remnants
-Same as step 20, now at 275 °C. The preceding `G28 Z` is again a proximity home —
-safe at print temperature (contact would be blocked by the 180 °C guard, but it is
-never requested here).
+### 28. `clean` (second) — brush the nozzle before printing
+Same as step 20, now at 275 °C, and again with no `G28 Z`. Note this now runs
+straight after `nozzle_expansion` with no purge in between, so the toolhead is
+already at the bucket and the move there is a no-op.
 
 ### 29. `primeline` — adaptive prime line
 `PRIMELINE SIZE=… ADAPTIVE_MODE=1`. With this SIZE the default start point (5, 2.5)
 is pulled toward the print: clamped to `(xMin−5, yMin−5)` → the line starts at
-**≈ (149.6, 153.8)**, running **+X** for 40 mm at Z 0.6. Sequence: unretract 23 mm
-(`unretract_length` — refills the 20 mm purge retract plus pressure), extrude 30 mm
+**≈ (149.6, 153.8)**, running **+X** for 40 mm at Z 0.6. Sequence: unretract 5 mm
+(`unretract_length` — pure nozzle pressurization now; there is no retract left to
+refill, and this is **the** knob if the line starts blobby or starved), extrude 30 mm
 of filament along the line (~3 mm wide bead, ~5.5 mm/s for a 10 mm³/s flowrate),
 micro-retract 0.2 mm, hop to Z3, sidestep 2/2 mm so the slicer's first Z move can't
 drag the nozzle back through the line, `M400`.
@@ -209,14 +240,15 @@ drag the nozzle back through the line, `M400`.
 ## Things easy to misread
 
 - **Two `clean` actions is deliberate**: one *before* contact probing (clean nozzle
-  → trustworthy touch), one *after* the purge (clean nozzle → tidy first layer).
+  → trustworthy touch), one *before* the prime line (clean nozzle → tidy first layer).
 - **`contact_auto_calibrate` vs `contact_z_home`**: both touch the bed with the
   nozzle. The first (CALIBRATE=1) exists to calibrate Beacon's *proximity model*
   before QGL/mesh; the second (CALIBRATE=0) sets the *final Z origin* after the
   gantry has been leveled. Removing either breaks a different thing.
-- **All bed-touching happens at ≤150 °C** via the contact temperature guard; every
-  later `G28 Z` uses proximity (`home_method_when_homed: proximity`) and never
-  touches, so 275 °C is safe there.
+- **All bed-touching happens at ≤150 °C** via the contact temperature guard. There
+  are no longer any `G28 Z` calls in the action list at all: `force_homing_before_brush`
+  is False, precisely because a proximity re-home after `contact_z_home` would have
+  discarded the contact-established Z origin right before the prime line.
 - **Gate check ≠ load**: `MMU_CHECK_GATE` only proves filament exists at gates 0
   and 1 (cheap, cold, early). The actual load to the nozzle happens ~15 minutes
   later inside `extruder_heating`, once the hotend is at 275 °C.
@@ -224,9 +256,12 @@ drag the nozzle back through the line, `M400`.
   this HH version — the config key Klippain checks (`sync_to_extruder`) no longer
   exists. Print-time sync behavior is owned by HH (sync-feedback buffer +
   flowguard).
-- **The 20 mm purge retract and 23 mm prime-line unretract are a matched pair**
-  (`retract_length` / `unretract_length` in `variables.cfg`). Change one, revisit
-  the other, or the prime line starts starved or over-pressurized.
+- **`retract_length` no longer does anything in a print.** It used to be the purge
+  retract that `unretract_length` was paired against; with `purge` gone it is used by
+  neither START_PRINT nor END_PRINT (END_PRINT's `retract_filament` takes the MMU
+  branch, and with `mmu_unload_on_end_print: False` that branch is now empty too — so
+  that action is a complete no-op). It survives only as a parameter of the manually
+  callable `PURGE` command.
 - **Bed fans are absent from this sequence on purpose** — the `bed_fans.cfg` state
   machine is always-on and self-triggering (see `docs/bed_fans_control.md`).
 
@@ -239,6 +274,6 @@ drag the nozzle back through the line, `M400`.
 | Bed soak | 8 min |
 | Nozzle to 150 °C | ~1 min (overlaps nothing — blocking) |
 | Clean + calibrate + QGL + mesh + Z home | ~2–3 min |
-| Nozzle 150 → 275 °C + tool load | ~2 min |
-| Purge (incl. 10 s ooze) + clean + prime | ~1 min |
+| Nozzle 150 → 275 °C (+ tool load only if not already loaded) | ~2 min |
+| Clean + prime | ~30 s |
 | **Total** | **~25–30 min** |

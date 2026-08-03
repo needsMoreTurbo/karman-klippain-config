@@ -56,12 +56,14 @@ REPO = Path(__file__).resolve().parent.parent
 # The macros/ entries are Klippain framework files reached through the framework
 # symlink: they resolve on the Pi / SSHFS mount and dangle in a workstation clone,
 # so every reader below skips files that are not present.
+# Order matters and mirrors printer.cfg: overrides.cfg is included LAST there, so its
+# definitions must win here too (it re-defines _CONDITIONAL_MOVE_TO_PURGE_BUCKET).
 MACRO_FILES = [
     REPO / "mmu/base/mmu_cut_tip.cfg",
     REPO / "mmu/addons/blobifier.cfg",
-    REPO / "overrides.cfg",
     REPO / "macros/base/start_print.cfg",
     REPO / "macros/helpers/nozzle_cleaning.cfg",
+    REPO / "overrides.cfg",
 ]
 # Files that own gcode_macro variable_* blocks we must harvest.
 # Order matters: overrides.cfg re-opens [gcode_macro _USER_VARIABLES] and must win.
@@ -508,13 +510,12 @@ def scen_start_print(sim: Sim):
     sim.run_macro("BLOBIFIER")
     sim.inferred("HH restores saved position", x=px, y=py, z=pz)
 
-    sim.phase = "6 purge (klippain, 30mm + retract)"
-    sim.run_macro("_MODULE_PURGE")
-
-    sim.phase = "7 clean #2 (wipe off purge remnants)"
+    # The klippain `purge` action was dropped from startprint_actions on 2026-08-02;
+    # _MODULE_PURGE is deliberately not simulated here so this matches the live list.
+    sim.phase = "6 clean #2 (wipe before the prime line)"
     sim.run_macro("_MODULE_CLEAN")
 
-    sim.phase = "8 primeline"
+    sim.phase = "7 primeline"
     sim.run_macro("_MODULE_PRIMELINE")
 
 
