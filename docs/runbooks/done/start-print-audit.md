@@ -161,3 +161,13 @@ Update `docs/start_print_walkthrough.md` so it still matches reality.
     when the toolhead was already at the bucket. Now gated on `travels` too. See decisions.md.
   - ℹ️ Teal→black bleed persists at toolchanges — expected, that is the purge-matrix task in
     TODO.md, not this runbook.
+
+  Committed as `79a595f` (audit), `78a49cd` (thermal_expansion fix), `a00b923` (docs), on top of
+  `92ef3df` / `7bbb1df` (visualizer). Archived here. **Two edits made after the last
+  `FIRMWARE_RESTART` are committed but not yet live** — the `travels` guard on the safe-Z lift and
+  the corrected nozzle-offset console message. Both are cosmetic/efficiency only; current running
+  behaviour is correct. They apply on the next restart, no action needed.
+
+  Handed back to `TODO.md` rather than left buried here: purge-length tuning (with the measured
+  numbers), the END_PRINT `retract_filament` no-op, and revisiting the "MMU profiles must send
+  CHAMBER=0" rule now that the tolerance is fixed.

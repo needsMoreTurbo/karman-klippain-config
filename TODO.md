@@ -147,7 +147,7 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
 ## Miscellaneous
 - [x] **Audit START_PRINT for no-op / hardware-stale steps** — ✅ done and **verified on hardware
   2026-08-02** (single-colour + 2-colour). First layer measurably better; no manual Z offset
-  needed. — runbook: `docs/runbooks/start-print-audit.md`
+  needed. — runbook: `docs/runbooks/done/start-print-audit.md`
 - [x] **Fix: nozzle-expansion offset applied zero on every print but the first after a restart**
   — a stale `nozzle_expansion_applied_offset` cancelled the new offset exactly, and the console
   message reported the *target* rather than the delta actually issued, which hid it. Both fixed
