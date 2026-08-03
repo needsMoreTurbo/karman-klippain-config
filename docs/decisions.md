@@ -10,6 +10,111 @@ Keep entries short. Link the file, don't duplicate it.
 
 ---
 
+## 2026-08-02 — Nozzle-expansion offset silently applied **zero** on every print but the first
+**Decision:** `_START_PRINT_ACTION_NOZZLE_EXPANSION` now calls
+`_BEACON_SET_NOZZLE_TEMP_OFFSET RESET=True` *before* the real call, and
+`_BEACON_REMOVE_NOZZLE_TEMP_OFFSET` zeroes the saved variable.
+**Why:** `_BEACON_SET_NOZZLE_TEMP_OFFSET` applies `(-applied_offset) + expansion_offset`, where
+the first term is meant to remove a **still-in-effect** previous offset. It never is:
+Klippain's START_PRINT prologue runs an absolute `SET_GCODE_OFFSET Z=0`
+(`macros/base/start_print.cfg:126`) long before this action. Meanwhile
+`nozzle_expansion_applied_offset` is only cleared by `_BEACON_INIT` (firmware restart) or an
+explicit RESET — the END_PRINT remover subtracted from the gcode offset without clearing it. So
+the two terms cancelled **exactly** and `SET_GCODE_OFFSET Z_ADJUST=0.0` was issued. Net effect:
+**the first print after a FIRMWARE_RESTART got the offset; every print after it got nothing**,
+which is why this presented as intermittent and was mistaken for a calibration problem.
+Nothing was miscalibrated — `nozzle_expansion_coefficient = 0.055` is correct and
+`1.0 × (275−150) × 0.055/100 = 0.06875` is the right answer; it was just never applied.
+**Reproduced offline** with `tools/render_macro.py`: stale saved value → `Z_ADJUST=0.0`;
+after RESET → `Z_ADJUST=0.06875`.
+**Why RESET rather than only fixing the remover:** it also covers cancelled prints and power
+loss, where END_PRINT never runs at all. ~0.069 mm is ~1/3 of a 0.2 mm layer.
+
+## 2026-08-02 — `M141` / `M191` are undefined; the errors are cosmetic
+**Decision:** noted, not yet fixed. Klipper answers `Unknown command:"M191"` non-fatally and the
+print continues.
+**Why it appears:** OrcaSlicer emits `M191 S45` / `M141 S0` when chamber temperature control is
+active in the profile. There is no chamber heater and no `M141`/`M191` definition anywhere in
+Klipper, Klippain, or this repo. KlipperScreen raises the response as a popup; Mainsail files it
+in the console, hence "it only showed on one screen". Chamber waiting is owned by START_PRINT's
+`chamber_soak` via the `CHAMBER=` parameter, which is passed independently of these commands.
+**If it becomes annoying:** define no-op `M141`/`M191` macros in overrides.cfg. Do *not* fix it
+by turning the slicer toggle off — that suppresses the commands but does not zero
+`chamber_temperature`, so `CHAMBER=` still arrives (see 2026-07-14).
+
+## 2026-08-02 — `force_homing_before_brush: False` (was True)
+**Decision:** no `G28 Z` before either `clean` in START_PRINT.
+**Why:** two independent reasons. (1) *Stale* — it existed to "not miss the brush", but the
+brush is gantry-mounted (2026-07-19), so its Z tracks the toolhead and only an X slide engages
+it. (2) *Harmful* — `home_method_when_homed: proximity`, so the `G28 Z` in the **second** clean
+re-homed Z by proximity immediately after `contact_z_home` had set it by nozzle contact,
+discarding the authoritative Z origin right before the prime line. Either the contact home is
+the reference or it isn't; it can't be both.
+**Also worth knowing:** this flag never protected against a racked gantry — re-homing Z
+re-zeroes at bed centre, it does not level. Its `home_z_hop: 5` was in fact the *cause* of the
+bucket traverse crossing the plate at z5. That job now belongs to `bucket_travel_safe_z`.
+Klippain's own template default is `False`; our `True` dated to the initial config commit and
+predated the gantry-brush rework.
+
+## 2026-08-02 — `bucket_travel_safe_z: 20` and an override of `_CONDITIONAL_MOVE_TO_PURGE_BUCKET`
+**Decision:** lift to 20 mm before the diagonal to the purge bucket. ⚠️ Looks arbitrary; isn't.
+**Why:** Klippain drives a bare `G1 X Y` from wherever the toolhead is to (9, 359) and does
+**not** route through `_KARMAN_PARK_MOVE`, so nothing enforced a Z floor on a traverse that
+crosses the whole bed — and the first `clean` runs *before* `tilt_calib`, i.e. on a gantry that
+may still be racked. Sizing (from `gantry_corners` geometry, checked by the `start_print`
+scenario in `tools/visualize_toolchange.py`): one Z-motor corner low by 30 mm puts the nozzle up
+to **14.6 mm** below commanded Z on this traverse and **17.0 mm** below anywhere over the plate.
+20 covers it with margin. For scale, QGL's `max_adjust` is 10 mm, so a rack big enough to defeat
+this aborts `tilt_calib` anyway.
+**Rejected:** relying on `bed_soak`'s Z50 park — it is skipped entirely when the bed is already
+within 8 °C of target, which is exactly the repeat-print case.
+**Refined same day** after the maintainer spotted the toolhead bobbing in the back-left corner:
+the lift is now gated on `travels` (does the XY move actually go anywhere) as well as on Z. The
+second `clean` follows the initial-load purge with the toolhead **already at the bucket**, so it
+was lifting 5→20→5 in place, protecting a diagonal that never happened.
+
+## 2026-08-02 — Klippain's `purge` action removed from `startprint_actions`
+**Decision:** drop `purge`; resize `unretract_length` 23 → 5 in the same change.
+**Why:** it was waste. Blobifier owns purging when a load happens, and `primeline` re-primes the
+nozzle when one doesn't. On a cold 2-colour start it made three purges back to back (Blobifier
+~94 mm³ → `purge` 30 mm → prime line 23 + 30 mm).
+**The coupling that makes this non-obvious:** `PRIMELINE` unretracts **unconditionally**
+(`prime_line.cfg`, no guard), and that unretract existed solely to refill the −20 mm retract at
+the *end* of `PURGE`. Removing `purge` alone would have left +23 mm extruded standing still at
+the prime-line start. `retract_length` is consequently now unused by START_PRINT *and* END_PRINT
+— it survives only as a parameter of the manually callable `PURGE` command, so don't delete it.
+**Watch:** `unretract_length` is the tuning knob — blobby prime-line start → lower, starved → raise.
+
+## 2026-08-02 — Chamber soak stays; the tolerance was the bug
+**Decision:** keep `chamber_soak` in the action list; `print_default_chamber_temp_tolerance`
+0.0 → 2.0. ⚠️ An earlier proposal to *remove* the action was wrong and was withdrawn.
+**Why:** `chamber_soak` heats nothing (there is no chamber heater) — it is a wait-with-timeout
+that polls the toolhead sensor and prints anyway after ~14 min. Removing it would have deleted
+the only mechanism that can wait on chamber temperature at all; `bed_fans.cfg` cannot do this —
+it has no chamber *target*, only fan thresholds, and emits nothing but `SET_FAN_SPEED` /
+`SET_GCODE_VARIABLE` / `RESPOND`, so it can never delay or block a print. The real defect was
+`tolerance: 0.0`, demanding an exact hit on a warm, noisy, toolhead-mounted sensor rounded to
+0.1 °C — which guaranteed the full timeout for any nonzero setpoint.
+**Constraint that isn't discoverable from either file alone:** keep slicer `CHAMBER` setpoints
+**≤ ~55 °C**. `bed_fans.cfg` throttles the under-bed fans above `chamber_max` (60 °C), and those
+fans are what warms the chamber — a higher setpoint makes the two systems fight and burns the
+timeout. This may also mean the 2026-07-14 "MMU profiles must send CHAMBER=0" rule can be
+relaxed; it was a workaround for the zero-tolerance behaviour.
+
+## 2026-08-02 — `mmu_unload_on_end_print: False`, and what it does *not* buy
+**Decision:** leave filament loaded at print end.
+**Why:** avoids a pointless unload/reload cycle on repeat single-tool prints, where the next
+START_PRINT then reports "Tool T0 is already loaded" and skips both the load and the Blobifier
+purge.
+**⚠️ The catch:** on **multi-tool** prints this saves nothing. `_KLIPPAIN_MMU_INIT`'s gate-check
+branch is guarded on `printer.mmu.tool|string != TOOLS_USED` — with `TOOLS_USED="0,1"` that is
+always true, so it runs `MMU_UNLOAD` at print *start* regardless of what END_PRINT did. The flag
+only moves the unload from END_PRINT to START_PRINT, where it costs ~1 min of startup, and the
+filament now sits in the UHF melt zone through the whole cooldown in between.
+**Side effect:** END_PRINT's `retract_filament` action is now a **complete** no-op — the MMU
+branch is gated off by this flag and the plain-retract `elif` is unreachable while
+`klippain_mmu_enabled` is True.
+
 ## 2026-07-25 — Standalone swaps end at the rest via a `SWAP` wrapper, not an HH hook
 **Decision:** `SWAP TOOL=n` (overrides.cfg) parks on the nozzle rest *before* calling `Tn`.
 **Why:** Happy Hare saves the toolhead position at command start (`mmu.py:6892`, after

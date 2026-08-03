@@ -3,7 +3,7 @@
 **Objective:** go through the 13-action `START_PRINT` sequence and remove steps that either do
 nothing, or were correct for older hardware and are not any more. Correctness only — **not** a
 speed or filament-waste optimisation.
-**Status:** not started · **Created:** 2026-07-25
+**Status:** ✅ **complete — verified on hardware 2026-08-02** · **Created:** 2026-07-25
 **Prerequisites:** none. Reading `docs/start_print_walkthrough.md` first is strongly advised —
 it already traces every step of this exact sequence with timings.
 
@@ -125,3 +125,39 @@ Update `docs/start_print_walkthrough.md` so it still matches reality.
   2026-08-02 in `TODO.md`. Useful result for this runbook: all three bucket approaches clear the
   y_max lane rule by only 2.1 mm (cross at x=17.1), and applying P1 removes the `clean` #2 crossing
   entirely while lifting `clean` #1's to z50.
+- **2026-08-02** — Steps 5 applied after maintainer review of each proposal in turn. Two proposals
+  changed materially under questioning and the record should show why:
+  - **P2 was withdrawn and replaced.** Proposed removing `chamber_soak`; that was wrong. It heats
+    nothing and imposes no minimum — it is a wait-with-timeout, and it is the *only* thing that can
+    wait on chamber temperature (`bed_fans.cfg` has no chamber target and cannot block a print).
+    Removing it would have deleted a capability the maintainer actively uses via the slicer. The
+    real defect was `tolerance: 0.0`. Applied 2.0 instead.
+  - **P3 "the purge is required" was overstated.** The purge is waste; the only real constraint is
+    that `PRIMELINE` unretracts unconditionally, so `purge` and `unretract_length` must move
+    together. Option A taken (drop the action, `unretract_length` 23 → 5).
+  - Also corrected mid-session: END_PRINT's 20 mm retract never ran (unreachable `elif`), and
+    `_KLIPPAIN_MMU_INIT` unloads at print start on multi-tool prints regardless of
+    `mmu_unload_on_end_print` — so that flag buys nothing for 2-colour prints.
+
+  Applied: `force_homing_before_brush: False` · new `bucket_travel_safe_z: 20` +
+  `_CONDITIONAL_MOVE_TO_PURGE_BUCKET` override · `chamber_temp_tolerance: 2.0` · `purge` dropped ·
+  `unretract_length: 5` · `mmu_unload_on_end_print: False`.
+  Both validators pass; all 5 visualizer scenarios clean.
+- **2026-08-02 — Step 6 VERIFIED. Runbook complete.** Two prints run by the maintainer: a
+  single-colour (no Blobifier purge — prime line is the only purge) and a 2-colour with 5
+  toolchanges. Results against the Step 6 checklist:
+  - ✅ START_PRINT completed clean on both. Only console noise was `Unknown command:"M141"/"M191"`
+    (cosmetic, see decisions.md). No shutdowns, no "Move out of range", no keep-out trips.
+  - ✅ **First layer "much more consistent and just the right level"** — better than before, which
+    is the outcome P1 predicted (the contact-set Z origin now survives to the prime line).
+  - ✅ **No manual Z offset needed** — also the hardware confirmation of the nozzle-expansion fix.
+  - ✅ Nozzle clean at print start on both.
+  - ✅ Visualizer clean on all 5 scenarios.
+  - ⚠️ **Prime line straddles the two paths, as designed and as predicted.** Slight starvation on
+    the no-purge path, a *minor* blob on the Blobifier path. `unretract_length: 5` is deliberately
+    the compromise; **left as-is** — a blob lands on the discarded prime line, starvation lands on
+    the part. Revisit only if either end gets worse.
+  - 🔧 **One defect found by the maintainer and fixed:** the safe-Z lift bobbed 5→20→5 in place
+    when the toolhead was already at the bucket. Now gated on `travels` too. See decisions.md.
+  - ℹ️ Teal→black bleed persists at toolchanges — expected, that is the purge-matrix task in
+    TODO.md, not this runbook.

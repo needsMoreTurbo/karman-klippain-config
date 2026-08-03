@@ -145,15 +145,57 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
 - [ ] Bed-shape exclusions (see Collision avoidance) — front-left keep-out not yet notched into the bed polygon
 
 ## Miscellaneous
-- [ ] **Audit START_PRINT for no-op / hardware-stale steps** — correctness pass over the 13-action
-  sequence: `chamber_soak` likely a permanent no-op, `force_homing_before_brush` meaningless now the
-  brush is gantry-mounted, and the purge chain may be three deep (Blobifier initial-load purge +
-  Klippain `purge` + prime line). `contact_auto_calibrate` stays.
-  — runbook: `docs/runbooks/start-print-audit.md`
+- [x] **Audit START_PRINT for no-op / hardware-stale steps** — ✅ done and **verified on hardware
+  2026-08-02** (single-colour + 2-colour). First layer measurably better; no manual Z offset
+  needed. — runbook: `docs/runbooks/start-print-audit.md`
+- [x] **Fix: nozzle-expansion offset applied zero on every print but the first after a restart**
+  — a stale `nozzle_expansion_applied_offset` cancelled the new offset exactly, and the console
+  message reported the *target* rather than the delta actually issued, which hid it. Both fixed
+  in `thermal_expansion.cfg`; see `docs/decisions.md` 2026-08-02.
+- [ ] **END_PRINT `retract_filament` is now a complete no-op** — with `mmu_unload_on_end_print:
+  False` the MMU branch is gated off and the plain-retract `elif` is unreachable
+  (`klippain_mmu_enabled` is True). Decide whether END_PRINT should retract at all now that
+  filament stays loaded in the UHF melt zone through cooldown. Same kind of audit as START_PRINT.
+- [ ] **Reconsider "MMU profiles must send CHAMBER=0"** (`docs/decisions.md` 2026-07-14) — that rule
+  was a workaround for `chamber_temp_tolerance: 0.0`, which is now 2.0. Keep setpoints ≤ ~55 °C.
+- [ ] **Purge lengths are sized for a standard hotend, not the UHF** — do this AFTER the START_PRINT
+  verification prints (changing it mid-verification would confound the result). Measured 2026-08-02
+  on a `SWAP TOOL=0` (teal → black) that visibly failed to complete the colour change:
+
+  ```
+  BLOBIFIER: Swapped T1 > T0
+  BLOBIFIER: Purging 36mm of filament
+  ```
+
+  Blobifier's formula (`mmu/addons/blobifier.cfg:378-391`):
+  `purge_len = (pv[from][to] × purge_length_modifier) / 2.405 + extruder_filament_remaining + retracted_length + purge_length_addition`
+
+  | Term | Value | Note |
+  |---|---|---|
+  | slicer `pv[1][0]` (T1→T0) | 41 mm³ | `PURGE_VOLUMES=0,218,41,0`; T0→T1 is 218 |
+  | × `purge_length_modifier` 0.6 | 24.6 mm³ | |
+  | ÷ 2.405 mm² | **10.2 mm** | ← the only part that actually flushes colour |
+  | + residual (~24) + retract (2) | ≈ 36 mm | displacement only — pushes old colour to the tip |
+
+  **The melt zone alone holds 25 mm ≈ 60 mm³**, so the swap delivered under half a melt-zone volume
+  of fresh material. The slicer's 41 mm³ is the standard "going to a dark colour needs less"
+  heuristic, sized for a ~10 mm melt zone — same class of error as `toolhead_residual_filament`
+  (see `docs/decisions.md` 2026-07-17).
+
+  Corollary: **`purge_length_minimum: 30` is effectively zero flush** (~4 mm after displacement).
+  Knobs, in rough order of preference: raise the slicer flushing volume for →dark swaps; raise
+  `purge_length_minimum` toward ~60–70; `purge_length_addition` (blobifier.cfg's own guidance:
+  *"INCREASE when dark→light swaps are good but light→dark aren't"* — this is that case);
+  `purge_length_modifier` 0.6 → higher. Supersedes the older "Tune purge volume" line under
+  Toolchange optimization.
+
+  For manual swaps meanwhile, bypass the matrix entirely: `BLOBIFIER_TEST PURGE_LENGTH=100`,
+  repeated until the blob runs clean, **before** starting a print.
 
 ## Toolchange optimization (later)
 - [ ] Implement the fast sequence: retract → cutter → cut → fast-retract while moving to blobifier → blobifier purge → shake bin → wipe → resume
-- [ ] Tune purge volume — account for the pre-cut retraction so we don't over/under-purge
+- [ ] ~~Tune purge volume~~ — superseded by the purge-length task under **Miscellaneous**, which has
+  the measured numbers from the 2026-08-02 teal→black swap failure
 - [ ] Tune **PSF** sync-feedback behaviour under real prints (incl. `flowguard_max_relief`)
 
 ## Spoolman integration (later)
