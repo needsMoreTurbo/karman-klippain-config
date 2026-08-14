@@ -72,10 +72,33 @@ def extract_macro_body(cfg_text: str, name: str) -> str:
     return "\n".join(body)
 
 
+class MacroAbort(Exception):
+    """Raised by the action_raise_error stub, mirroring Klipper aborting a macro."""
+
+
+def action_globals() -> dict:
+    """Stubs for the action_* callables Klipper injects into every macro template.
+
+    Klipper exposes these as real functions; without them StrictUndefined makes any macro
+    that reports progress unrenderable. The stubs render their output inline so it shows up
+    in the rendered gcode, prefixed so it is clearly not a real gcode line.
+    """
+    return {
+        "action_respond_info": lambda msg: f"; [respond_info] {msg}",
+        "action_raise_error": _raise_macro_error,
+        "action_emergency_stop": lambda msg="": f"; [emergency_stop] {msg}",
+        "action_call_remote_method": lambda name, **kw: f"; [remote_method] {name} {kw}",
+    }
+
+
+def _raise_macro_error(msg: str):
+    raise MacroAbort(msg)
+
+
 def render(cfg_path: Path, macro: str, printer: dict, params: dict | None = None) -> str:
     body = extract_macro_body(cfg_path.read_text(), macro)
     tmpl = klipper_env().from_string(body)
-    return tmpl.render(printer=printer, params=params or {})
+    return tmpl.render(printer=printer, params=params or {}, **action_globals())
 
 
 # --------------------------------------------------------------------------- #
@@ -233,6 +256,7 @@ def main() -> int:
     ap.add_argument("cfg", nargs="?", help="path to a .cfg file (relative to repo root ok)")
     ap.add_argument("macro", nargs="?", help="macro name, e.g. _BED_FAN_TICK")
     ap.add_argument("--json", help="path to a JSON file providing the `printer` context")
+    ap.add_argument("--params", help="macro parameters as KEY=VAL,KEY=VAL (the `params` object)")
     ap.add_argument("--selftest", action="store_true", help="run the built-in bed-fan state-machine test")
     args = ap.parse_args()
 
@@ -246,7 +270,24 @@ def main() -> int:
     if not cfg_path.is_absolute() and not cfg_path.exists():
         cfg_path = REPO_ROOT / args.cfg
     printer = json.loads(Path(args.json).read_text()) if args.json else {}
-    print(render(cfg_path, args.macro, printer))
+
+    # Klipper passes every parameter as a string, so keep them strings here too — that is what
+    # makes `|int` / `|float` / `|default()` behave the way they do on the printer.
+    params: dict[str, str] = {}
+    if args.params:
+        for pair in args.params.split(","):
+            if not pair.strip():
+                continue
+            if "=" not in pair:
+                ap.error(f"bad --params entry {pair!r}; expected KEY=VAL")
+            key, _, val = pair.partition("=")
+            params[key.strip().upper()] = val.strip()
+
+    try:
+        print(render(cfg_path, args.macro, printer, params))
+    except MacroAbort as exc:
+        print(f"MACRO ABORTED (action_raise_error): {exc}")
+        return 2
     return 0
 
 
