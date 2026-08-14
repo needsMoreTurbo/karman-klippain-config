@@ -1,3 +1,15 @@
+## 2026-08-14 — Adaptive PA's visible benefit is muted by `dont_slow_down_outer_wall`
+**Decision:** none — a validation finding, recorded so it isn't mistaken for a bug later.
+**Why:** three test prints (no PA / flat 0.032 / adaptive matrix; model:
+[Printables #437927](https://www.printables.com/model/437927-pressure-advance-torture-test))
+showed a dramatic difference between no-PA and either PA-enabled print, but only a subtle one
+between flat 0.032 and the adaptive matrix — despite the matrix spanning a measured 0.028–0.039
+(docs/pa_physics.md). Cause: `dont_slow_down_outer_wall` is enabled in the Orca profile, which
+keeps outer-wall speed — and so the flow and accel-burst PA acts on — close to constant across the
+part. The outer wall is most of what's visible, and at nearly-constant flow/accel the matrix and
+the flat value land close to the same table entry. The matrix's larger effect is concentrated on
+internal features with more speed variation, and on any profile without that setting enabled.
+
 ## 2026-08-13 — BDPressure: solve for the Hr−Hl zero crossing; never auto-apply the result
 **Decision:** replaced the vendor's answer-selection in `cmd_stop` (`~/bd_pressure/klipper/
 bdpressure.py`, outside this repo, frozen in moonraker.conf) with a least-squares fit for the PA
