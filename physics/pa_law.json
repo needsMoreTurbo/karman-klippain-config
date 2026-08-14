@@ -1,0 +1,74 @@
+{
+ "_read_me": "The fitted relationship PA = C * Qpeak^(n-1), solved self-consistently (Qpeak depends on PA through the burst term). n=0.653 is NOT fitted here - it is carried over unchanged from melt_model.py's waveform fit against pressure TRACES (fit_model.py), an independent dataset that never saw a single PA_CALIBRATE sweep result. C is the one parameter fitted to pa_sweeps.json (13 valid rows). See docs/pa_physics.md section 5.3 for why this beats interpolating the raw grid, and section 5.4 for a competing hypothesis (pressure_advance_smooth_time attenuation) that fit the same data plausibly and was then falsified at 9.5 sigma by the accel=6000 cells. matrix[] is what was pasted into Orca's adaptive_pressure_advance_model, generated from the law rather than read off individual cells so every measurement constrains every entry. Regenerate with the solve_pa()/fit routine in this file's history (physics/fit_model.py does not yet contain it as a callable function - it was run ad hoc; formalizing it is on TODO.md).",
+ "n_shear": 0.653,
+ "n_source": "melt_model.py waveform fit, physics/measured.json (independent of pa_sweeps.json)",
+ "C": 0.1032,
+ "C_units": "PA = C * (A_fil * E_per_mm * (v_burst_peak))^(n-1), v_burst_peak in mm/s, A_fil=2.405mm^2, E_per_mm=0.046",
+ "fit_chi2": 1.81,
+ "fit_dof": 12,
+ "fitted_against": "physics/pa_sweeps.json, all rows with valid=true (13 rows)",
+ "blind_prediction_note": "the 4 rows at accel=6000 in pa_sweeps.json were predicted by this law (fitted on the other 9) BEFORE being measured; blind chi2/dof was 0.27",
+ "matrix": [
+  {
+   "pa": 0.0391,
+   "flow": 10.0,
+   "accel": 1500
+  },
+  {
+   "pa": 0.0355,
+   "flow": 10.0,
+   "accel": 3000
+  },
+  {
+   "pa": 0.0314,
+   "flow": 10.0,
+   "accel": 6000
+  },
+  {
+   "pa": 0.0363,
+   "flow": 14.4,
+   "accel": 1500
+  },
+  {
+   "pa": 0.0336,
+   "flow": 14.4,
+   "accel": 3000
+  },
+  {
+   "pa": 0.0302,
+   "flow": 14.4,
+   "accel": 6000
+  },
+  {
+   "pa": 0.0336,
+   "flow": 20.0,
+   "accel": 1500
+  },
+  {
+   "pa": 0.0316,
+   "flow": 20.0,
+   "accel": 3000
+  },
+  {
+   "pa": 0.0289,
+   "flow": 20.0,
+   "accel": 6000
+  },
+  {
+   "pa": 0.0317,
+   "flow": 25.0,
+   "accel": 1500
+  },
+  {
+   "pa": 0.0301,
+   "flow": 25.0,
+   "accel": 3000
+  },
+  {
+   "pa": 0.0279,
+   "flow": 25.0,
+   "accel": 6000
+  }
+ ],
+ "orca_paste_block": "0.0391,10.00,1500\n0.0355,10.00,3000\n0.0314,10.00,6000\n0.0363,14.40,1500\n0.0336,14.40,3000\n0.0302,14.40,6000\n0.0336,20.00,1500\n0.0316,20.00,3000\n0.0289,20.00,6000\n0.0317,25.00,1500\n0.0301,25.00,3000\n0.0279,25.00,6000"
+}
