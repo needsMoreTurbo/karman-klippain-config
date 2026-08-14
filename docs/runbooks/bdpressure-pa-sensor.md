@@ -733,11 +733,19 @@ Record the returned PA value and compare against the current `material_parameter
   All verification items passed; a 2-colour print ran correctly and its later nozzle clog is a
   pre-existing recurring fault, tracked separately, not a regression from this work.
   **Objective complete.**
+- **2026-08-14** — **Three test prints visually compared.** Model:
+  [PA torture test, Printables #437927](https://www.printables.com/model/437927-pressure-advance-torture-test).
+  No-PA vs either PA-enabled print is dramatic, as expected. **Flat 0.032 vs the adaptive matrix is
+  subtle** — visually close, matrix still preferred by eye. Cause identified, not a measurement
+  problem: Orca's `dont_slow_down_outer_wall` is enabled, which keeps outer-wall speed — and so the
+  flow and accel-burst PA acts on — close to constant across the part. Most of what the eye actually
+  sees is the outer wall, and at nearly-constant flow/accel the matrix and the flat value sit close
+  to the same point in the table (docs/pa_physics.md §5.3). The matrix's larger, measured effect
+  (0.028–0.039 across the swept range) is concentrated on faster/slower internal features and any
+  print without that setting enabled — see `docs/decisions.md` for the record, kept so a future
+  session doesn't mistake this for the calibration not working.
 
 ## Remaining follow-ups (not blocking; this runbook is closed)
-- **Decide whether to ship the adaptive PA matrix at all.** It spans 0.028–0.039; the flat 0.032
-  now in config is never more than ~20% off. Compare the three test prints before committing to
-  the extra complexity — that comparison has not been made.
 - **The three module patches live outside this repo.** Mirrored to a fork of `markniu/bd_pressure`
   (see `docs/pa_physics.md` Appendix A); `update_manager` stays commented out so an update cannot
   overwrite them. A Pi reimage still needs them restored by hand.
