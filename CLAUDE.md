@@ -123,6 +123,9 @@ compacted and silently lose detail. Durable knowledge lives in files; the chat i
 `decisions.md` (**why** things are set the way they are — read before "fixing" an odd-looking
 value; add an entry when you make a non-obvious call) · `workflow.md` (maintainer cheat sheet for
 the session/runbook system) · `start_print_walkthrough.md` ·
+`pa_physics.md` (pressure advance from a strain-gauge sensor — the melt model, how a fit of it goes
+wrong, what the sensor cannot measure, and the calibration protocol; code-level notes live in
+`physics/README.md`) ·
 **MMU:** `mmu_purge_volume.md` (how purge length is computed),
 `mmu_slicer_setup.md` (OrcaSlicer checklist), `mmu_standalone_swap_plan.md` (standalone-swap runbook).
 `TODO.md` holds the build backlog; `docs/runbooks/` the per-objective runbooks; `NOTES.md` is the

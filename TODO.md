@@ -145,6 +145,18 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
 - [ ] Bed-shape exclusions (see Collision avoidance) — front-left keep-out not yet notched into the bed polygon
 
 ## Miscellaneous
+- [x] ✅ **Install BDPressure E sensor for automatic PA calibration — DONE 2026-08-14.**
+  PandaPi3D strain-gauge sensor at the groove mount, **connected by USB** (the original I2C plan
+  was superseded — I2C structurally cannot carry the raw ADC stream, and an unanswered NAK shut
+  the toolhead MCU down on every `G28`). **PA mode only — Beacon stays the probe.**
+  The first unit was faulty (strain-gauge P+ lead open); the replacement works. Measured ABS PA is
+  **0.032**, which replaced the inherited 0.0480 in `variables.cfg`. Two vendor bugs found and
+  patched along the way (an event-length limit that discarded 78% of steps at 14.4 mm³/s, and an
+  answer-selection routine that returned 0.076 for a sweep whose data crossed at 0.031).
+  Physics model, measurement limits and calibration protocol: `docs/pa_physics.md`. Every sweep
+  result: `physics/pa_sweeps.json`. Orca adaptive matrix: `physics/pa_law.json`.
+  Open follow-ups are listed at the end of the runbook — none blocking.
+  — runbook: `docs/runbooks/bdpressure-pa-sensor.md`
 - [x] **Audit START_PRINT for no-op / hardware-stale steps** — ✅ done and **verified on hardware
   2026-08-02** (single-colour + 2-colour). First layer measurably better; no manual Z offset
   needed. — runbook: `docs/runbooks/done/start-print-audit.md`
@@ -158,7 +170,9 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
   filament stays loaded in the UHF melt zone through cooldown. Same kind of audit as START_PRINT.
 - [ ] **Reconsider "MMU profiles must send CHAMBER=0"** (`docs/decisions.md` 2026-07-14) — that rule
   was a workaround for `chamber_temp_tolerance: 0.0`, which is now 2.0. Keep setpoints ≤ ~55 °C.
-- [ ] **Purge lengths are sized for a standard hotend, not the UHF** — do this AFTER the START_PRINT
+- [ ] **Purge lengths are sized for a standard hotend, not the UHF** — runbook:
+  `docs/runbooks/blobifier-purge-tuning.md` (Klipper-side fix via `purge_length_minimum`; acceptance
+  is a clean colour change *on the part*). Do this AFTER the START_PRINT
   verification prints (changing it mid-verification would confound the result). Measured 2026-08-02
   on a `SWAP TOOL=0` (teal → black) that visibly failed to complete the colour change:
 
