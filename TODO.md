@@ -158,11 +158,6 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
   result: `physics/pa_sweeps.json`. Orca adaptive matrix: `physics/pa_law.json`.
   Open follow-ups are listed at the end of the runbook — none blocking.
   — runbook: `docs/runbooks/done/bdpressure-pa-sensor.md`
-- [ ] ⚠️ **Run `FIRMWARE_RESTART` to make the 0.032 ABS PA value live.** Confirmed via direct query
-  2026-08-14: the printer's live `material_parameters.pressure_advance` for ABS is still the old
-  **0.048** — the edited files were never reloaded. No physical risk, but any ABS print run before
-  this restart uses the stale value. Re-query `gcode_macro _USER_VARIABLES` after restarting to
-  confirm ABS reads 0.032.
 - [ ] **Standardise per-filament PA calibration (constant + adaptive)** — turn the one-off ABS
   characterisation into a repeatable procedure: a two-corner gate that decides whether adaptive PA
   earns its keep for a given filament, a constant PA at the outer-wall operating point if it
