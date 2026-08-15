@@ -1,0 +1,13 @@
+# Paths Claude must not edit directly. One glob per line, matched against the absolute file path.
+# Optionally add "| explanation" — it's shown to Claude when the edit is blocked, so make it say
+# where the edit SHOULD go instead.
+#
+# Read by .claude/hooks/guard-protected-paths.sh. No patterns => the hook is a no-op.
+# Empty by default: /setup fills this in once it knows which files are vendor-managed.
+#
+# Examples (delete or adapt):
+#
+# */vendor_config/*        | Vendor-managed; overwritten on firmware update. Put hand-edits in overrides.cfg.
+# */macros/*               | Framework-managed and reverted by its updater. Override the macro in your own file.
+# *auto_generated*.cfg     | Generated file — edit the source it is generated from.
+# */printer.cfg            | Firmware writes its autosave block here; hand-edit the included files instead.
