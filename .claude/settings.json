@@ -38,5 +38,10 @@
         ]
       }
     ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(ssh ernst@192.168.1.240 'cd ~/printer_data/config && git status -s && echo \"--- unpushed ---\" && git log --oneline origin/main..HEAD 2>/dev/null | head')"
+    ]
   }
 }
