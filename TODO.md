@@ -144,7 +144,8 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
 - [x] Slice + run a 2-color test model end-to-end 🎉
 - [ ] Bed-shape exclusions (see Collision avoidance) — front-left keep-out not yet notched into the bed polygon
 
-## Miscellaneous
+## Pressure advance
+
 - [x] ✅ **Install BDPressure E sensor for automatic PA calibration — DONE 2026-08-14.**
   PandaPi3D strain-gauge sensor at the groove mount, **connected by USB** (the original I2C plan
   was superseded — I2C structurally cannot carry the raw ADC stream, and an unanswered NAK shut
@@ -156,7 +157,20 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
   Physics model, measurement limits and calibration protocol: `docs/pa_physics.md`. Every sweep
   result: `physics/pa_sweeps.json`. Orca adaptive matrix: `physics/pa_law.json`.
   Open follow-ups are listed at the end of the runbook — none blocking.
-  — runbook: `docs/runbooks/bdpressure-pa-sensor.md`
+  — runbook: `docs/runbooks/done/bdpressure-pa-sensor.md`
+- [ ] ⚠️ **Run `FIRMWARE_RESTART` to make the 0.032 ABS PA value live.** Confirmed via direct query
+  2026-08-14: the printer's live `material_parameters.pressure_advance` for ABS is still the old
+  **0.048** — the edited files were never reloaded. No physical risk, but any ABS print run before
+  this restart uses the stale value. Re-query `gcode_macro _USER_VARIABLES` after restarting to
+  confirm ABS reads 0.032.
+- [ ] **Standardise per-filament PA calibration (constant + adaptive)** — turn the one-off ABS
+  characterisation into a repeatable procedure: a two-corner gate that decides whether adaptive PA
+  earns its keep for a given filament, a constant PA at the outer-wall operating point if it
+  doesn't, and the law-driven expansion to a full matrix if it does. Includes the refit helper
+  Appendix B flags as missing, and validation on a real second filament.
+  — runbook: `docs/runbooks/pa-calibration-sop.md`
+
+## Miscellaneous
 - [x] **Audit START_PRINT for no-op / hardware-stale steps** — ✅ done and **verified on hardware
   2026-08-02** (single-colour + 2-colour). First layer measurably better; no manual Z offset
   needed. — runbook: `docs/runbooks/done/start-print-audit.md`

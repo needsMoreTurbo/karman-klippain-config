@@ -3,13 +3,15 @@
 **Objective:** fit the PandaPi3D **BDPressure E** strain-gauge sensor, connect it **by USB** to the
 Pi, install the Klipper module, and get `PA_CALIBRATE` returning a usable pressure-advance value on
 demand as a standalone command.
-**Status:** ✅ **COMPLETE — 2026-08-14.** All verification passed. The sensor returns repeatable PA
-values (±0.004 run to run), and the measured ABS figure of **0.032** has replaced the inherited
-0.0480 in `variables.cfg`. Went beyond the original scope: two vendor bugs found and patched, a
-melt-zone physics model built and fitted, and a flow/acceleration PA matrix generated for
-OrcaSlicer's adaptive model. See `docs/pa_physics.md` for the physics and method,
-`physics/pa_sweeps.json` for every sweep result, `physics/pa_law.json` for the matrix.
-Remaining follow-ups are listed at the end of the status log. · **Created:** 2026-08-03
+**Status:** ✅ **COMPLETE — 2026-08-14**, with one pending deploy step (⚠️ below: needs
+`FIRMWARE_RESTART`). All verification passed. The sensor returns repeatable PA values (±0.004 run
+to run), and the measured ABS figure of **0.032** has replaced the inherited 0.0480 in
+`variables.cfg` — on disk; **not yet live on the printer**, see the warning below. Went beyond the
+original scope: two vendor bugs found and patched, a melt-zone physics model built and fitted, and
+a flow/acceleration PA matrix generated for OrcaSlicer's adaptive model. See `docs/pa_physics.md`
+for the physics and method, `physics/pa_sweeps.json` for every sweep result, `physics/pa_law.json`
+for the matrix. Remaining follow-ups are listed at the end of the status log. · **Created:**
+2026-08-03
 **Prerequisites:** sensor in hand; a hotend-removal session (it mounts at the groove mount);
 filament loadable via the MMU.
 
@@ -744,6 +746,17 @@ Record the returned PA value and compare against the current `material_parameter
   (0.028–0.039 across the swept range) is concentrated on faster/slower internal features and any
   print without that setting enabled — see `docs/decisions.md` for the record, kept so a future
   session doesn't mistake this for the calibration not working.
+
+## ⚠️ Pending — FIRMWARE_RESTART needed before the 0.032 value is live
+Checked directly against the running Klipper session on 2026-08-14 (query
+`gcode_macro _USER_VARIABLES` and `configfile.settings.extruder`): the last restart was
+**07:29:46**, and the `variables.cfg` / `overrides.cfg` edits landed at **16:05:01** — after it.
+The **live** ABS `material_parameters.pressure_advance` is still **0.048**, and live
+`configfile.settings.extruder.pressure_advance` is still **0.035**. The files on disk are correct;
+the running printer has not picked them up. **Run `FIRMWARE_RESTART`, then re-query
+`gcode_macro _USER_VARIABLES` to confirm ABS reads 0.032**, before printing ABS and trusting the
+default PA. (No physical risk in the meantime — the printer is idle, `standby`, both heaters at
+target 0 — this is a config-drift gap, not a safety issue.)
 
 ## Remaining follow-ups (not blocking; this runbook is closed)
 - **The three module patches live outside this repo.** Mirrored to a fork of `markniu/bd_pressure`
