@@ -237,6 +237,39 @@ hypothesis. Expect colour quality to regress; this is a diagnostic, not a fix.
 effect* while re-breaking the purge arithmetic and the load length. If the park position is the
 problem, change `retract_length` (J5), which moves it directly and in isolation.
 
+## ▶️ Next steps on resume (as of 2026-08-15)
+Session paused mid-diagnosis to work on something else on the Pi. **Nothing below has a result
+yet** — do these in order, each gates the next:
+
+1. **Verify the jam fix.** `pushback_length: 15 → 30` is already committed and live
+   (`mmu/base/mmu_macro_vars.cfg`) — no action needed to re-apply it. Run several T0↔T1 swaps or a
+   short print and watch for the PTFE/heatbreak chunk recurring.
+   - **Fixed** → jam regression closed, go to step 2.
+   - **Still jamming** → work through the regression plan above in order: J2 (measure the PTFE
+     boundary — nothing in this repo records it), then J5 (`retract_length: 66 → 63`, trades back
+     ~3mm of sliver for the old working park position), then J6 (thermal test, floor→100, expect
+     colour regression, diagnostic only — do not leave it there).
+2. **Only after the jam is confirmed fixed — resume Step 5,** the real 2-colour print acceptance
+   test. This is the actual blocking item for the runbook itself; everything up to floor 140 is
+   still only proxy-verified (blob tail, not the part).
+3. **Post-purge ooze (3-5mm dribble after the blob, found 2026-08-08) — untested.**
+   `SET_GCODE_VARIABLE MACRO=BLOBIFIER VARIABLE=pressure_release_time VALUE=2500` was proposed but
+   there is no report on whether it was tried or whether it worked. Config still reads `1000`
+   (`blobifier.cfg:214`) — a runtime override would NOT have survived any `FIRMWARE_RESTART` since,
+   so assume it needs re-testing from scratch. If it works, persist it to the file with reasoning,
+   the same way the other tuned values were.
+4. **`toolhead_ooze_reduction: 2` review — still no observation.** Watch the load side (start of a
+   new colour, not the post-purge blob) on the next successful print. If clean, try walking it
+   toward 0 live via `MMU_TEST_CONFIG TOOLHEAD_OOZE_REDUCTION=0`.
+5. **Same-tool print-start prime cost (140mm vs the old 30mm) — never explicitly accepted.** Small
+   but real per-print cost; flag it once Step 5 passes so it's a conscious tradeoff, not a silent one.
+6. **`TODO.md` still doesn't link this runbook.** Not touched this session — the file currently has
+   unrelated uncommitted PA-calibration edits in progress; add the blobifier line without disturbing
+   those, or coordinate with whichever session owns that work first.
+7. **Optional, not blocking:** `purge_length_modifier` ≈ 1.16 would let →light reach 140 on its own
+   and drop the floor to →dark's real requirement (~125, still unmeasured as a true minimum) — saves
+   ~15mm per dark-ward swap. Do this only after everything above is closed.
+
 ## Status log
 - **2026-08-03** — runbook created from the 2026-08-02 measurements; not yet started.
 - **2026-08-08** — Step 1 confirmed: `minimum 30`, `maximum 150`, `purge_length 150`, `modifier 0.6`,
