@@ -2,8 +2,9 @@
 
 **Objective:** colour changes complete cleanly on the part. Fix the measured under-purge on
 light→dark swaps without making dark→light wasteful. **Klipper-side only.**
-**Status:** Steps 1-4 complete, floor settled at 140 · **Step 5 (real 2-colour print) NOT yet run**
-**Created:** 2026-08-03
+**Status:** 🔴 **BLOCKED — jams in the PTFE/heatbreak region opened 2026-08-08** (see the regression
+section below; resolve before anything else). Steps 1-4 complete, floor settled at 140; Step 5
+attempted and abandoned. **Created:** 2026-08-03
 **Prerequisites:** Blobifier live and owning purge; both gates loaded with contrasting filament.
 
 ## The problem, already diagnosed
@@ -166,6 +167,75 @@ argument for `purge_length_addition` instead of a floor.
 Add a `docs/decisions.md` entry recording **why the floor is what it is** (displacement vs flush,
 and that `purge_length_minimum` was chosen over `_addition`/`_modifier` because it is a floor and
 so leaves the already-generous direction alone). Tick the task in `TODO.md`.
+
+## 🔴 REGRESSION — frequent jams in the PTFE/heatbreak region (opened 2026-08-08)
+**Symptom:** a chunk of filament lodges in the PTFE/heatbreak region; frequent. **Started only after
+this session's changes.** Note it produces **no MMU error** — the 2026-08-08 print shows no FlowGuard
+trip and `0.00 spent paused over 0 pauses (This job)`; the pause and cancel were manual. So this is a
+physical obstruction degrading extrusion, not a fault HH can see. Logs will not find it — geometry will.
+
+### Prime suspect — the cut fragment is no longer pushed past the PTFE/metal boundary
+`mmu/base/mmu_cut_tip.cfg:98` exists for precisely this failure: *"Pushback of the tip residual into
+the hotend to avoid future catching (ideally past the PTFE/metal boundary)"*, and
+`pushback_length: 15.0` in `mmu_macro_vars.cfg` still carries its shipped **`TUNE ME: PTFE tube
+length + 3mm`** comment — it was never tuned to this toolhead.
+
+```
+effective_pushback = min(pushback_length, retract_length − extruder_filament_remaining − retracted_length)
+  before: min(15, 55 − 25 − 2) = min(15, 28) = 15
+  after:  min(15, 66 − 33 − 2) = min(15, 31) = 15   <-- pushback DISTANCE unchanged
+```
+The pushback distance did not change — but the **starting position did**. The fragment now parks at
+64 mm from the nozzle instead of 61, so after a fixed 15 mm push it ends at **49 mm instead of 46 mm**.
+If the PTFE/metal boundary lies between those, the fragment used to clear it and now stops short
+inside the PTFE, and every swap deposits another one. This is a **direct consequence of
+`retract_length: 55 → 66`**, made possible by a pushback that was never sized for this machine.
+
+### Other candidates, ranked
+2. **Heat creep from longer swaps.** A 140 mm purge at `purge_spd: 400` adds ~21 s of extrusion per
+   swap. More time at temperature with filament stationary in the heatbreak → softening and swelling.
+   Fits "chunk in the heatbreak" but does **not** explain a clean fragment.
+3. **Under-load from `residual: 25 → 33`.** The load advances 8 mm less, parking the fresh tip 8 mm
+   further back. Plausible contributor, weak as a sole cause.
+4. **Melt-zone chilling at 140 mm purge.** ~16 mm³/s sustained; within a UHF's capability, so
+   unlikely, and it would jam at the *nozzle*, not the heatbreak.
+5. **Gate-1 bowden / `toolhead_homing_max`.** Upstream of the toolhead entirely. Effectively excluded
+   — but note `homing_max: 100` means a genuine load failure now drives 100 mm rather than 60.
+
+### Plan — discriminate before changing anything
+**Step J1 — inspect the chunk (do this first; it alone eliminates most candidates).**
+- Clean ~5 mm cylinder, two flat cut faces → **candidate 1**, the cut fragment
+- Swollen / mushroomed / tapered / longer than 5 mm → **candidate 2**, heat creep
+- Several fragments fused together → candidate 1, accumulating over swaps
+
+**Step J2 — measure the PTFE/metal boundary.** Distance from nozzle tip to where the PTFE ends, by
+filament probe (same method that produced `toolhead_extruder_to_nozzle: 94.5`). This converts the
+whole question into arithmetic: the fragment must be pushed **below** that number, and it currently
+lands at 49 mm. Record it — nothing in this repo documents it today.
+
+**Step J3 — does it correlate with swap count?** Jams after a predictable number of swaps ⇒
+accumulation (candidate 1). Jams at random ⇒ thermal (candidate 2).
+
+**Step J4 — cheapest targeted fix, live, no restart:**
+```
+SET_GCODE_VARIABLE MACRO=_MMU_CUT_TIP_VARS VARIABLE=pushback_length VALUE=25
+```
+Ceiling is `retract_length − residual − retracted` = **31**, so 25 is safe and clears ~6 mm deeper
+than the old-and-working 46 mm. If jams stop, candidate 1 is confirmed and the fix is forward, not a
+revert. **Do J2 first if possible** — a measured boundary beats a guessed 25.
+
+**Step J5 — if J4 does not fix it, revert the cut park to its old position:**
+`retract_length: 66 → 63` restores the pre-session tip position of 61 mm while *keeping* the correct
+residual 33 (tip = retract_length − retracted_length). Costs ~3 mm of extra sliver. If jams stop here
+but not at J4, the mechanism is the park position rather than the pushback.
+
+**Step J6 — only if 1 is excluded:** drop the purge floor to ~100 for a few swaps to test the thermal
+hypothesis. Expect colour quality to regress; this is a diagnostic, not a fix.
+
+### ⚠️ Do not "fix" this by reverting `toolhead_residual_filament` to 25
+33 is measured and verified by square cuts. Reverting it would restore the old cut park as a *side
+effect* while re-breaking the purge arithmetic and the load length. If the park position is the
+problem, change `retract_length` (J5), which moves it directly and in isolation.
 
 ## Status log
 - **2026-08-03** — runbook created from the 2026-08-02 measurements; not yet started.
