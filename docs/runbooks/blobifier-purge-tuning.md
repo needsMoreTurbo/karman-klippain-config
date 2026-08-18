@@ -212,6 +212,19 @@ inside the PTFE, and every swap deposits another one. This is a **direct consequ
 > **untested in isolation**, since it changed at the same time as everything else this runbook has
 > touched.
 
+> **Update, 2026-08-18 — the PTFE→metal boundary is now measured, and it closes the distance
+> question for good.** User measurement: 3mm from the cutter to the top of the PTFE, 18.6mm of PTFE
+> tube, so the transition to metal sits **21.6mm below the cutter** = `blade_pos − 21.6` =
+> `69 − 21.6` = **47.4mm from the nozzle**. Two things fall out of this:
+> - Piece A's nominal pushback stop (≈40mm, from J4's 30mm stroke) is **already 7.4mm past** that
+>   line. The 15→30mm pushback fix was never marginal on distance — it should have cleared the
+>   transition with room to spare, and the jam happened anyway. This is now a *measured* confirmation
+>   of the buckling conclusion, not just a plausible theory.
+> - The original Step-1 retract (tip 2→66mm) transits the **entire 47.4mm of metal heatbreak**, then
+>   the full 18.6mm of PTFE, ending exactly at the PTFE's top edge (66mm) — a striking coincidence
+>   with `retract_length` itself, though that value was derived independently (from the cut-boundary
+>   bisection), so treat the match as observation, not causation, unless it recurs elsewhere.
+
 ### Other candidates, ranked
 2. **Heat creep from longer swaps.** A 140 mm purge at `purge_spd: 400` adds ~21 s of extrusion per
    swap. More time at temperature with filament stationary in the heatbreak → softening and swelling.
@@ -235,10 +248,11 @@ See the reality-check figure in [Tip-Cut Anatomy](https://claude.ai/code/artifac
   is a tapered wisp, but it's on the wrong end for pure heat creep to explain alone (nozzle-facing,
   not the cut face) — see candidate 1's update above.
 
-**Step J2 — measure the PTFE/metal boundary.** Still not done. Distance from nozzle tip to where the
-PTFE ends, by filament probe (same method that produced `toolhead_extruder_to_nozzle: 94.5`). Now
-doubles as a buckling-trigger search: a step in bore diameter is a likely place for a slender wisp to
-first catch and fold. Record it — nothing in this repo documents it today.
+**Step J2 — measure the PTFE/metal boundary.** ✅ **Done, 2026-08-18** (direct measurement, not filament
+probe): 3mm cutter→PTFE-top + 18.6mm of PTFE tube = **47.4mm from the nozzle**. See the update above —
+this rules out pushback distance definitively (nominal stop is already 7.4mm past it) and narrows the
+buckling-trigger search: a step in bore diameter right at 47.4mm is now the concrete place to look, not
+just a hypothesis.
 
 **Step J3 — does it correlate with swap count?** Not yet answered.
 
@@ -268,12 +282,13 @@ parked here so they aren't lost, not queued as the next action.
 - **F1 — reduce the wisp length at the source, instead of surviving it.** Every fix tried so far
   (pushback distance, the PTFE swap) treats the wisp as a given. It may be avoidable: the pre-cut
   `simple_tip_forming` wiggle (`mmu_cut_tip.cfg` step 1b; `variable_simple_tip_forming` in
-  `mmu_macro_vars.cfg`) advances the tip from 66mm back down to 34mm — within ~1mm of the measured
-  melt-zone top, ρ=33mm — then retracts it to 66mm again, immediately before the blade fires. That's
-  a second dip into the standing melt reservoir right before the cut, and a plausible second (or
-  primary) wisp-stretching event, distinct from the original Step-1 retract. Candidates to test
-  later: disable `simple_tip_forming`, or shorten the wiggle so it doesn't reach back down to the
-  melt-zone boundary. See the "wiggle between ①→②" figure in
+  `mmu_macro_vars.cfg`) advances the tip from 66mm back down to 34mm — now known to be **13.4mm past
+  the measured PTFE/metal transition (47.4mm)** and within ~1mm of the melt-zone top (ρ=33mm) — then
+  retracts it to 66mm again, immediately before the blade fires. That's a full second transit of the
+  PTFE/metal boundary plus a second dip into the standing melt reservoir, right before the cut: a
+  strong second (or primary) candidate for where the wisp actually forms, distinct from the original
+  Step-1 retract. Candidates to test later: disable `simple_tip_forming`, or shorten the wiggle so it
+  doesn't reach back down past the boundary. See the "wiggle between ①→②" figure in
   [Tip-Cut Anatomy](https://claude.ai/code/artifact/cbab05b3-1215-4832-bc5a-977eba6ba92c) for the
   exact numbers.
 
@@ -300,11 +315,11 @@ yet** — do these in order, each gates the next:
    whether that alone fixes it. Next: run several T0↔T1 swaps / a short print on the new PTFE and
    watch for recurrence.
    - **Fixed** → jam regression closed (log in `docs/decisions.md` that pushback distance was a red
-     herring and the PTFE transition was the real lever), go to step 2.
-   - **Still jamming** → J2 (measure the PTFE→metal boundary — still not done, and now doubles as a
-     buckling-trigger search), then J5 (`retract_length: 66 → 63` — may shorten the wisp itself, not
-     just relocate it), then consider F1 (the tip-forming wiggle) out of order if J2/J5 don't resolve
-     it.
+     herring, confirmed by measurement — nominal pushback already clears the PTFE/metal boundary by
+     7.4mm — and the PTFE transition/geometry was the real lever), go to step 2.
+   - **Still jamming** → J2 is done (boundary measured at 47.4mm, see above); go straight to J5
+     (`retract_length: 66 → 63` — may shorten the wisp itself, not just relocate it), then F1 (the
+     tip-forming wiggle, which now also transits 13.4mm past the measured boundary — see above).
 2. **Only after the jam is confirmed fixed — resume Step 5,** the real 2-colour print acceptance
    test. This is the actual blocking item for the runbook itself; everything up to floor 140 is
    still only proxy-verified (blob tail, not the part).
@@ -434,3 +449,12 @@ yet** — do these in order, each gates the next:
   (LDO ABS) behave the same under these settings before calling any of this session's tuning settled
   — plus the standing principle that this machine's shared (non-per-filament) settings need
   validating against every filament in rotation, not just whichever one was loaded while tuning.
+- **2026-08-18** — 📏 **PTFE→metal boundary measured directly (user, not filament probe): 47.4mm from
+  the nozzle** (3mm cutter→PTFE-top + 18.6mm PTFE length = 21.6mm below the fixed `blade_pos: 69`).
+  Closes Step J2. The number **confirms** the buckling conclusion rather than just supporting it:
+  J4's nominal pushback stop (≈40mm) is already 7.4mm past this line, so the jam is not, and was
+  never going to be, fixable by pushing further. Also feeds F1: the pre-cut wiggle's advance leg
+  (66→34mm) now measurably transits 13.4mm past this same boundary before retracting again — a
+  second full crossing, strengthening it as the wisp's likely origin. Artifact and runbook plan
+  updated to match; noted the retract_length(66)≈PTFE-top(66) coincidence but flagged it as
+  unexplained, not causal.
