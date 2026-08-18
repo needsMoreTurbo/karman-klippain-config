@@ -4,7 +4,10 @@
 light→dark swaps without making dark→light wasteful. **Klipper-side only.**
 **Status:** 🔴 **BLOCKED — jams in the PTFE/heatbreak region opened 2026-08-08** (see the regression
 section below; resolve before anything else). Steps 1-4 complete, floor settled at 140; Step 5
-attempted and abandoned. **Created:** 2026-08-03
+attempted and abandoned. Pushback-distance fix (15→30) did **not** resolve the jam — mechanism is now
+understood as wisp buckling, not insufficient push distance; see
+[Tip-Cut Anatomy](https://claude.ai/code/artifact/cbab05b3-1215-4832-bc5a-977eba6ba92c). PTFE tubing
+replaced by the user as a mitigation, result pending. **Created:** 2026-08-03
 **Prerequisites:** Blobifier live and owning purge; both gates loaded with contrasting filament.
 
 ## The problem, already diagnosed
@@ -191,10 +194,29 @@ If the PTFE/metal boundary lies between those, the fragment used to clear it and
 inside the PTFE, and every swap deposits another one. This is a **direct consequence of
 `retract_length: 55 → 66`**, made possible by a pushback that was never sized for this machine.
 
+> **Update, 2026-08-18 — partially right, importantly incomplete.** `pushback_length: 15 → 30` was
+> applied and the jam recurred (user report, same week the fix shipped) — so "not pushed far enough"
+> was not the actual mechanism. The extracted fragment: a **6mm solid chunk with a ~9mm tapered wisp**
+> attached, 15mm total (not the ~3mm the macro's own arithmetic predicts). The wisp sits on **Piece
+> B's nozzle-facing end** — stretched-out material from the tip that was molten at the nozzle a moment
+> before the retract pulled it away, not something torn by the blade. Being slender, it's prone to
+> **buckle** under the pushback's axial force instead of travelling straight, folding into a
+> cross-section wider than the bore — at which point more pushback distance just folds it harder.
+> Full geometry, both retract-phase wisp sources (the original Step-1 retract *and* the pre-cut
+> tip-forming wiggle, which dips to within ~1mm of the melt-zone boundary), and the buckling mechanism
+> are worked through in
+> [Tip-Cut Anatomy](https://claude.ai/code/artifact/cbab05b3-1215-4832-bc5a-977eba6ba92c).
+>
+> The user has since replaced the PTFE tubing with a slightly longer piece — a plausible mitigation
+> (removes a step/gap at the metal transition, likely where a buckling wisp first catches) — but
+> **untested in isolation**, since it changed at the same time as everything else this runbook has
+> touched.
+
 ### Other candidates, ranked
 2. **Heat creep from longer swaps.** A 140 mm purge at `purge_spd: 400` adds ~21 s of extrusion per
    swap. More time at temperature with filament stationary in the heatbreak → softening and swelling.
-   Fits "chunk in the heatbreak" but does **not** explain a clean fragment.
+   *(Revisit, 2026-08-18: the fragment isn't clean — it has a molten-stretched wisp — so heat creep
+   may be a contributing cause of the wisp's length rather than a mutually-exclusive candidate.)*
 3. **Under-load from `residual: 25 → 33`.** The load advances 8 mm less, parking the fresh tip 8 mm
    further back. Plausible contributor, weak as a sole cause.
 4. **Melt-zone chilling at 140 mm purge.** ~16 mm³/s sustained; within a UHF's capability, so
@@ -204,51 +226,85 @@ inside the PTFE, and every swap deposits another one. This is a **direct consequ
 
 ### Plan — discriminate before changing anything
 **Step J1 — inspect the chunk (do this first; it alone eliminates most candidates).**
-- Clean ~5 mm cylinder, two flat cut faces → **candidate 1**, the cut fragment
-- Swollen / mushroomed / tapered / longer than 5 mm → **candidate 2**, heat creep
-- Several fragments fused together → candidate 1, accumulating over swaps
+✅ **Done, 2026-08-15/18.** Result was neither pure option below — it was both at once: a 6mm
+solid/crisp chunk (the cut face) **plus** a ~9mm tapered wisp (the nozzle-facing end), 15mm total.
+See the reality-check figure in [Tip-Cut Anatomy](https://claude.ai/code/artifact/cbab05b3-1215-4832-bc5a-977eba6ba92c).
+- ~~Clean ~5 mm cylinder, two flat cut faces → candidate 1, the cut fragment~~ — partially: the cut
+  face itself *is* crisp.
+- ~~Swollen / mushroomed / tapered / longer than 5 mm → candidate 2, heat creep~~ — partially: there
+  is a tapered wisp, but it's on the wrong end for pure heat creep to explain alone (nozzle-facing,
+  not the cut face) — see candidate 1's update above.
 
-**Step J2 — measure the PTFE/metal boundary.** Distance from nozzle tip to where the PTFE ends, by
-filament probe (same method that produced `toolhead_extruder_to_nozzle: 94.5`). This converts the
-whole question into arithmetic: the fragment must be pushed **below** that number, and it currently
-lands at 49 mm. Record it — nothing in this repo documents it today.
+**Step J2 — measure the PTFE/metal boundary.** Still not done. Distance from nozzle tip to where the
+PTFE ends, by filament probe (same method that produced `toolhead_extruder_to_nozzle: 94.5`). Now
+doubles as a buckling-trigger search: a step in bore diameter is a likely place for a slender wisp to
+first catch and fold. Record it — nothing in this repo documents it today.
 
-**Step J3 — does it correlate with swap count?** Jams after a predictable number of swaps ⇒
-accumulation (candidate 1). Jams at random ⇒ thermal (candidate 2).
+**Step J3 — does it correlate with swap count?** Not yet answered.
 
-**Step J4 — cheapest targeted fix, live, no restart:**
-```
-SET_GCODE_VARIABLE MACRO=_MMU_CUT_TIP_VARS VARIABLE=pushback_length VALUE=25
-```
-Ceiling is `retract_length − residual − retracted` = **31**, so 25 is safe and clears ~6 mm deeper
-than the old-and-working 46 mm. If jams stop, candidate 1 is confirmed and the fix is forward, not a
-revert. **Do J2 first if possible** — a measured boundary beats a guessed 25.
+**Step J4 — pushback distance.** ✅ **Attempted at 30 (persisted, committed `00be615`) — did not stop
+the jam.** Distance was not the lever; see the 2026-08-18 update above. Do not re-try higher pushback
+values as a first move — it treats the wrong variable.
 
-**Step J5 — if J4 does not fix it, revert the cut park to its old position:**
+**Step J5 — if the PTFE swap doesn't hold, shorten the original retract:**
 `retract_length: 66 → 63` restores the pre-session tip position of 61 mm while *keeping* the correct
-residual 33 (tip = retract_length − retracted_length). Costs ~3 mm of extra sliver. If jams stop here
-but not at J4, the mechanism is the park position rather than the pushback.
+residual 33 (tip = retract_length − retracted_length). Costs ~3 mm of extra sliver, but also shortens
+the distance the once-molten tip travels away from the nozzle in Step 1 — which may shorten the wisp
+itself, not just relocate where it ends up. Worth trying before or alongside F1 below.
 
-**Step J6 — only if 1 is excluded:** drop the purge floor to ~100 for a few swaps to test the thermal
-hypothesis. Expect colour quality to regress; this is a diagnostic, not a fix.
+**Step J6 — only if the wisp/buckling mechanism is excluded:** drop the purge floor to ~100 for a few
+swaps to test whether less time at temperature (less heat creep) changes anything. Expect colour
+quality to regress; this is a diagnostic, not a fix.
 
 ### ⚠️ Do not "fix" this by reverting `toolhead_residual_filament` to 25
 33 is measured and verified by square cuts. Reverting it would restore the old cut park as a *side
 effect* while re-breaking the purge arithmetic and the load length. If the park position is the
 problem, change `retract_length` (J5), which moves it directly and in isolation.
 
-## ▶️ Next steps on resume (as of 2026-08-15)
+### 🕓 Captured for later — not started (2026-08-18)
+Two items identified while working through the wisp mechanism above. **Do not start these yet** —
+parked here so they aren't lost, not queued as the next action.
+
+- **F1 — reduce the wisp length at the source, instead of surviving it.** Every fix tried so far
+  (pushback distance, the PTFE swap) treats the wisp as a given. It may be avoidable: the pre-cut
+  `simple_tip_forming` wiggle (`mmu_cut_tip.cfg` step 1b; `variable_simple_tip_forming` in
+  `mmu_macro_vars.cfg`) advances the tip from 66mm back down to 34mm — within ~1mm of the measured
+  melt-zone top, ρ=33mm — then retracts it to 66mm again, immediately before the blade fires. That's
+  a second dip into the standing melt reservoir right before the cut, and a plausible second (or
+  primary) wisp-stretching event, distinct from the original Step-1 retract. Candidates to test
+  later: disable `simple_tip_forming`, or shorten the wiggle so it doesn't reach back down to the
+  melt-zone boundary. See the "wiggle between ①→②" figure in
+  [Tip-Cut Anatomy](https://claude.ai/code/artifact/cbab05b3-1215-4832-bc5a-977eba6ba92c) for the
+  exact numbers.
+
+- **F2 — confirm T0 and T1 filament behave the same under these settings.** Jams are *suspected, not
+  confirmed* to happen preferentially with T1 (LDO ABS, dark teal) loaded rather than T0 (Polymaker
+  PolyLite ABS, black). Every setting tuned this session — residual/retract geometry, pushback, purge
+  floor — was tuned once for both gates, validated mostly by watching whichever tool happened to be
+  active rather than deliberately checked against both. Before calling any of it settled, run the
+  same jam/cut/purge checks with **both** T0 and T1 loaded and compare.
+  **Standing principle, not just this bug:** this machine has no per-filament config — one
+  `retract_length`, one `purge_length_minimum`, one `pushback_length` serves every tool. Any future
+  toolchange tuning here has to be validated against *every filament actually in rotation*, not just
+  whichever one happened to be loaded while tuning. A setting that's clean for T0 and marginal for T1
+  is not a finished setting.
+
+## ▶️ Next steps on resume (as of 2026-08-18)
 Session paused mid-diagnosis to work on something else on the Pi. **Nothing below has a result
 yet** — do these in order, each gates the next:
 
-1. **Verify the jam fix.** `pushback_length: 15 → 30` is already committed and live
-   (`mmu/base/mmu_macro_vars.cfg`) — no action needed to re-apply it. Run several T0↔T1 swaps or a
-   short print and watch for the PTFE/heatbreak chunk recurring.
-   - **Fixed** → jam regression closed, go to step 2.
-   - **Still jamming** → work through the regression plan above in order: J2 (measure the PTFE
-     boundary — nothing in this repo records it), then J5 (`retract_length: 66 → 63`, trades back
-     ~3mm of sliver for the old working park position), then J6 (thermal test, floor→100, expect
-     colour regression, diagnostic only — do not leave it there).
+1. **Jam fix verified — result is NO.** `pushback_length: 15 → 30` did not stop the jam (user
+   report). The extracted fragment (6mm chunk + ~9mm wisp — see the artifact) shows the failure is
+   buckling, not insufficient push distance; pushing further was never going to help. The user has
+   since replaced the PTFE tubing with a longer piece as a separate mitigation — **not yet confirmed**
+   whether that alone fixes it. Next: run several T0↔T1 swaps / a short print on the new PTFE and
+   watch for recurrence.
+   - **Fixed** → jam regression closed (log in `docs/decisions.md` that pushback distance was a red
+     herring and the PTFE transition was the real lever), go to step 2.
+   - **Still jamming** → J2 (measure the PTFE→metal boundary — still not done, and now doubles as a
+     buckling-trigger search), then J5 (`retract_length: 66 → 63` — may shorten the wisp itself, not
+     just relocate it), then consider F1 (the tip-forming wiggle) out of order if J2/J5 don't resolve
+     it.
 2. **Only after the jam is confirmed fixed — resume Step 5,** the real 2-colour print acceptance
    test. This is the actual blocking item for the runbook itself; everything up to floor 140 is
    still only proxy-verified (blob tail, not the part).
@@ -360,3 +416,21 @@ yet** — do these in order, each gates the next:
   `toolhead_homing_max: 60 → 100`, then `MMU_CALIBRATE_BOWDEN` on gate 1.
   **RESOLVED & verified:** `mmu_calibration_bowden_lengths = [1462.7, 1505.4]`; T1 homing dropped
   57.1mm → 19.9/16.9mm (extra homing 10.3/7.4mm vs gate 0's 26.4mm). No failures since.
+- **2026-08-18** — 🔬 **Jam mechanism reframed: buckling, not push distance.** The `pushback_length:
+  15→30` fix (2026-08-08) did not stop the jam — user confirmed it recurred. Extracted fragment: 6mm
+  solid chunk + ~9mm tapered wisp (15mm total, not the ~3mm the cut macro's own arithmetic predicts).
+  The wisp is on Piece B's **nozzle-facing end**, not the cut face — stretched-out material from a tip
+  that was molten at the nozzle a moment before Step 1's retract pulled it 64mm away, not something
+  torn by the blade. Being slender, it buckles under the pushback's axial force instead of travelling
+  straight, wedging wider than the bore — more push distance just folds it harder. Worked through in
+  full, including a second candidate wisp-source (the pre-cut `simple_tip_forming` wiggle dips to
+  within ~1mm of the measured melt-zone top before the blade fires), in
+  [Tip-Cut Anatomy](https://claude.ai/code/artifact/cbab05b3-1215-4832-bc5a-977eba6ba92c).
+  Regression section, Step J1/J4 status, and "Next steps on resume" updated to match. User has
+  separately replaced the PTFE tubing with a longer piece (untested in isolation).
+- **2026-08-18** — Captured two future investigation items per user request, explicitly **not
+  started**: **F1** reduce the wisp length at the source (candidate lever: the tip-forming wiggle
+  above) instead of continuing to just survive it; **F2** confirm T0 (Polymaker PolyLite ABS) and T1
+  (LDO ABS) behave the same under these settings before calling any of this session's tuning settled
+  — plus the standing principle that this machine's shared (non-per-filament) settings need
+  validating against every filament in rotation, not just whichever one was loaded while tuning.
