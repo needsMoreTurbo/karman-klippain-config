@@ -1,3 +1,38 @@
+## 2026-08-20 — Some `MMU_TEST_CONFIG` parameters are silent no-ops (sync-feedback / FlowGuard)
+**Decision:** treat `sync_feedback_debug_log` and `flowguard_max_relief` as **startup-only**. Edit
+`mmu_parameters.cfg` and `FIRMWARE_RESTART`; never trust `MMU_TEST_CONFIG` for them.
+**Why:** both are consumed when `SyncControllerConfig(...)` is built inside `_init_controller()`
+(`~/Happy-Hare/extras/mmu/mmu_sync_feedback_manager.py:609,615`), called **only** from `__init__`
+(line 93). `set_test_config()` updates the attribute on the *manager* (lines 108, 113), but the code
+that uses them reads `ctrl.cfg.log_sync` and `ctrl.cfg.flowguard_relief_mm` — the frozen startup
+copy. Nothing propagates the change.
+**Why this is nastier than a plain no-op:** `get_test_config()` echoes the *manager's* value back
+(lines 132, 136), so `MMU_TEST_CONFIG` prints `sync_feedback_debug_log = 1` and looks like it
+worked. Cost a whole test print: the log was "enabled", a clog was reproduced, and no
+`sync_<gate>.jsonl` was ever written.
+**Generalisation:** other `MMU_TEST_CONFIG` params *do* apply live (verified this session:
+`TOOLHEAD_RESIDUAL_FILAMENT`; likewise all `_MMU_CUT_TIP_VARS` via `SET_GCODE_VARIABLE`). The
+distinguishing question is whether the value is re-read per use or captured into a config object at
+init. **Check the consumer, not the setter.**
+**Telemetry location** (not stated in the config comment): `sync_<gate>.jsonl` lands in the same
+directory as `klippy.log` → `~/printer_data/logs/sync_0.jsonl`, `sync_1.jsonl`. Plot with
+`~/Happy-Hare/utils/plot_sync_feedback.sh`.
+
+## 2026-08-20 — `flowguard_max_relief` is not measured in extruded filament
+**Decision:** convert before choosing a value; do not read the raw number as millimetres of print.
+**Why:** `_relief_effort()` (`mmu_sync_controller.py:971`) accumulates
+`d_ext * ((rd_ref / rd_cur) - 1)` — extruder motion scaled by the **fractional rotation-distance
+deviation**, i.e. how hard the controller is counter-steering, not how much filament moved. That
+deviation is capped by `sync_feedback_speed_multiplier` (5%) and measures ~4.5% in our logs (RD
+swings 22.32 → 23.38). Dividing by ~0.045: **40 ≈ 890 mm of filament, 15 ≈ 330 mm, 8 (HH default)
+≈ 180 mm.** The config's original "walk it toward ~15" note reads as conservative and is not — it is
+still ~330 mm of under-extruded printing before a trip.
+**Bigger caveat:** FlowGuard fires only when compression is **pegged at the extreme** (a hard
+stoppage where the synced gear piles filament into the buffer). A partial obstruction that merely
+degrades flow may never peg, and then **no threshold helps**. Confirm from `sync_<gate>.jsonl` that
+compression actually pegs during a real jam before tuning the number — that is why the debug log was
+enabled rather than lowering the threshold on a guess.
+
 ## 2026-08-14 — Adaptive PA's visible benefit is muted by `dont_slow_down_outer_wall`
 **Decision:** none — a validation finding, recorded so it isn't mistaken for a bug later.
 **Why:** three test prints (no PA / flat 0.032 / adaptive matrix; model:
