@@ -319,8 +319,35 @@ parked here so they aren't lost, not queued as the next action.
   **If that is not enough, second lever:** raise `extruder_move_speed` (currently 25 mm/s) to ~40.
   A faster pull tends to rupture a molten thread rather than draw it long. Also live-settable on
   `_MMU_CUT_TIP_VARS`. Watch for extruder slip — run_current is only 0.45 A.
+  ⚠️ **This one is confounded:** `extruder_move_speed` drives *both* the retract and the pushback
+  (`mmu_cut_tip.cfg:83, 103, 105`), with opposing effects — faster retract should *shorten* the wisp
+  (rupture beats draw), faster pushback should *worsen* buckling (more axial force on a slender
+  column). There is no variable to separate them, so a null result may be the two cancelling rather
+  than "speed doesn't matter." Run F1's boolean first and alone.
   See the "wiggle between ①→②" figure in
   [Tip-Cut Anatomy](https://claude.ai/code/artifact/cbab05b3-1215-4832-bc5a-977eba6ba92c).
+
+  **Test protocol (what each experiment can and cannot show).**
+  `MMU_EJECT` performs a real unload — cut included — then pushes the filament 100mm past the gate
+  (`gate_final_eject_distance: 100`) so it can be pulled out and inspected. Per CLAUDE.md, **never**
+  use `MMU_TEST_FORM_TIP` here.
+  ```
+  M109 S260                    # pre-heat EVERY trial: if the extruder is not hot enough to retract,
+                               # retracted_length is 0 not 2, shifting the effective retract 31 -> 33mm
+  MMU_EJECT                    # baseline -> pull out, photograph, label
+  T0                           # reload
+  SET_GCODE_VARIABLE MACRO=_MMU_CUT_TIP_VARS VARIABLE=simple_tip_forming VALUE=False
+  MMU_EJECT                    # variant -> photograph, label
+  ```
+  - ✅ **Shows:** the blade-cut face on **Piece A** — i.e. whether disabling tip forming degrades cut
+    squareness, which is the actual *risk* of the change.
+  - ❌ **Does NOT show the wisp.** The wisp lives on **Piece B**, the fragment that stays in the
+    hotend and is purged out on the next swap; Piece A never has one. Inspecting the wisp requires
+    either waiting for a jam and extracting it (how the 6mm+9mm measurement was obtained), or a cold
+    pull at ~100 °C, which fuses everything together and shows *that* a fragment existed rather than
+    its shape.
+  - 📊 **The real measure is jam frequency over N swaps.** The tip photos only tell you the change
+    didn't break the cut.
 
 - **F2 — confirm T0 and T1 filament behave the same under these settings.** Jams are *suspected, not
   confirmed* to happen preferentially with T1 (LDO ABS, dark teal) loaded rather than T0 (Polymaker
