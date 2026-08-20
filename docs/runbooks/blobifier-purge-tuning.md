@@ -298,11 +298,21 @@ problem, change `retract_length` (J5), which moves it directly and in isolation.
 Two items identified while working through the wisp mechanism above. **Do not start these yet** —
 parked here so they aren't lost, not queued as the next action.
 
-- **F1 — reduce the wisp length at the source, instead of surviving it.** ⭐ **Now the recommended
-  next action** (see the 2026-08-19 correction in the status log — F1's original rationale used a
-  wrong retract figure; the corrected geometry makes the case *stronger*, not weaker).
-  **Action:** `SET_GCODE_VARIABLE MACRO=_MMU_CUT_TIP_VARS VARIABLE=simple_tip_forming VALUE=False`
-  (live, no restart, instantly reversible, zero coupling to cut geometry or purge math).
+- **F1 — reduce the wisp length at the source, instead of surviving it.**
+  ✅ **RESOLVED 2026-08-19 by back-to-back wisp-shape sampling (protocol B below).**
+  **Outcome — my primary recommendation was wrong, the fallback was right:**
+  - `simple_tip_forming` → **KEPT at `True`.** Disabling it did not improve the wisp. The "the wiggle
+    dips the wisp ~8mm into hot metal and re-stretches it" mechanism, while geometrically real, is
+    evidently not what governs wisp length. Do not re-litigate this without new evidence — it was
+    tested directly, head to head, on this machine.
+  - `extruder_move_speed` → **25 → 40 mm/s, persisted.** A faster pull ruptures the molten thread
+    rather than drawing it long, and produced the shorter wisp in side-by-side samples.
+  ⚠️ **Only the retract half is validated.** The samples were taken under protocol B with
+  `pushback_length: 0`, so 40 mm/s was exercised on the *retract* alone. In production the same
+  variable also speeds up the **pushback** (`mmu_cut_tip.cfg:83, 103, 105`) — raising axial force
+  during exactly the move where the wisp is suspected to buckle. **If jams get worse rather than
+  better, suspect the pushback half first, not the retract.** There is no variable to separate them.
+  Original (now superseded) rationale follows, kept because the geometry in it is still correct:
   **Mechanism:** the wisp forms during Step 1's *mandatory* 31mm retract, which drags molten material
   out of the pool — unavoidable, the filament has to reach the blade. But `simple_tip_forming` then
   adds an *optional* `E+15.5 / E−15.5` round trip (hardcoded as half the effective retract — there is
@@ -399,11 +409,11 @@ yet** — do these in order, each gates the next:
    - **Fixed** → jam regression closed (log in `docs/decisions.md` that pushback distance was a red
      herring, confirmed by measurement — nominal pushback already clears the PTFE/metal boundary by
      7.4mm — and the PTFE transition/geometry was the real lever), go to step 2.
-   - **Still jamming** → J2 is done (boundary measured at 47.4mm). **Go to F1 first, not J5** —
-     `simple_tip_forming: False` is a single live boolean with no coupling, and the corrected geometry
-     (2026-08-19) shows it is the only *optional* step that drags the wisp through hot metal. J5
-     (`retract_length: 66 → 63`) is the fallback after that; note it also shrinks the wiggle, since
-     the wiggle is hardcoded to half the effective retract, so run F1 first or the two confound.
+   - **Still jamming** → J2 is done (boundary measured at 47.4mm) and F1 is done
+     (`extruder_move_speed: 40`, `simple_tip_forming` kept True — 2026-08-19). Next unexplored lever
+     is J5 (`retract_length: 66 → 63`); note it also shrinks the tip-forming wiggle, since the wiggle
+     is hardcoded to half the effective retract. Also still unverified: whether the longer PTFE tube
+     alone fixed anything, and whether the faster pushback (a side effect of F1) makes buckling worse.
 2. **Only after the jam is confirmed fixed — resume Step 5,** the real 2-colour print acceptance
    test. This is the actual blocking item for the runbook itself; everything up to floor 140 is
    still only proxy-verified (blob tail, not the part).
@@ -559,3 +569,13 @@ yet** — do these in order, each gates the next:
   framework-owned `mmu_cut_tip.cfg`, so on/off is the only available lever. Second lever if
   insufficient: `extruder_move_speed` 25 → ~40 mm/s (faster pull ruptures a molten thread rather than
   drawing it long; watch for extruder slip at 0.45 A). **Not yet run — no result.**
+- **2026-08-19** — ✅ **Tested back-to-back on wisp shape. The recommendation above was WRONG; the
+  fallback won.** Result: **keep `simple_tip_forming: True`** (disabling it did not improve the wisp
+  — so the "wiggle drags the wisp through hot metal" mechanism, though geometrically real, is not
+  what governs wisp length), and **`extruder_move_speed: 25 → 40`**, persisted in
+  `mmu_macro_vars.cfg` with the reasoning inline. Two process notes worth keeping: (1) this is the
+  second time this session a confident mechanism-based prediction lost to a direct measurement —
+  same lesson as the melt-pool value; (2) the samples were taken under protocol B with
+  `pushback_length: 0`, so **only the retract half of `extruder_move_speed` is validated**. In
+  production it also accelerates the pushback, increasing axial force during the very move where the
+  wisp is suspected to buckle. If jams worsen, that is the first suspect.
