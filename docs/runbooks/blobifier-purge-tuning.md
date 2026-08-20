@@ -435,6 +435,36 @@ yet** — do these in order, each gates the next:
    and drop the floor to →dark's real requirement (~125, still unmeasured as a true minimum) — saves
    ~15mm per dark-ward swap. Do this only after everything above is closed.
 
+## 📐 Residual filament: two different measurements, don't confuse them (2026-08-20)
+Two numbers exist for "how much filament is left in the hotend", they are **not the same quantity**,
+and mixing them produced a wrong conclusion this session:
+
+| | value | how obtained | what it is |
+|---|---|---|---|
+| **Melt-pool boundary** | ~40mm from nozzle | calipers: cutter → top of melt = 29mm, `69 − 29` | where solid becomes molten |
+| **`toolhead_residual_filament`** | ~33mm (band 32–38) | `retract_length` bisection; HH defines it as a probe-stall differential (`mmu.py:2801`) | how far short the tip actually parks — the *functional* value |
+
+They differ because retraction **drags some molten material out with the tip** instead of leaving it
+behind. The melt boundary is an upper bound on residual, not residual itself.
+
+**Decisive check:** cuts were verified square at `retract_length 66` / `residual_config 33`. Had the
+functional residual really been 40, the tip would park at 71mm — above `blade_pos: 69` — and every cut
+would have been air. So functional residual is <38 and **33 stands**. A 2026-08-20 proposal to raise
+`toolhead_residual_filament` to 40 (and drop `toolhead_ooze_reduction` to 0, and raise the purge floor
+to 147) was **withdrawn** on this reasoning before being applied.
+
+**Also:** Polymaker and LDO measured the *same* melt boundary (~29mm cutter-to-melt, within 1mm, and
+within 1mm again at a reduced 260 °C nozzle temp). So this measurement gives **no support** for a
+T0/T1 filament difference — F2 remains open and unexplained, not confirmed.
+
+### The real problem it exposed: Piece B has no margin
+`tip = residual_TRUE + (retract_length − residual_CONFIG − retracted_length)`, and residual_TRUE is a
+**band (32–38), not a point**. At `retract_length: 66` that gives `Piece B = 69 − tip = 0..6mm` — the
+worst case is a *zero-length* fragment with the tip exactly at the blade. Fixed by
+`retract_length: 66 → 60` (Piece B = 6..12mm). Full reasoning inline in `mmu_macro_vars.cfg`.
+**Principle:** size the cut for the *uncertainty band* of residual, not its point estimate. Chasing a
+minimal sliver (the 2026-08-08 goal) is only safe once residual is pinned to better than ±3mm.
+
 ## Status log
 - **2026-08-03** — runbook created from the 2026-08-02 measurements; not yet started.
 - **2026-08-08** — Step 1 confirmed: `minimum 30`, `maximum 150`, `purge_length 150`, `modifier 0.6`,
@@ -569,6 +599,18 @@ yet** — do these in order, each gates the next:
   framework-owned `mmu_cut_tip.cfg`, so on/off is the only available lever. Second lever if
   insufficient: `extruder_move_speed` 25 → ~40 mm/s (faster pull ruptures a molten thread rather than
   drawing it long; watch for extruder slip at 0.45 A). **Not yet run — no result.**
+- **2026-08-20** — 📐 **`retract_length: 66 → 60`, to give Piece B a margin.** Prompted by caliper
+  measurements of the melt-pool boundary (~40mm from nozzle, *same* for Polymaker and LDO, and stable
+  within 1mm at 260 °C). Those measurements do **not** equal `toolhead_residual_filament` — see the
+  section above — and an initial proposal to raise residual 33→40 was withdrawn before being applied,
+  disproved by the verified square cuts at the current settings. What the exercise *did* establish:
+  residual is known only as a **band (32–38mm)**, and at `retract_length: 66` the worst case of that
+  band puts Piece B at **zero length**, tip exactly at the blade. 60 gives 6–12mm across the whole
+  band. Also helps the jam: a fatter solid fragment buckles far less readily than a stub plus wisp.
+  Pushback is now capped at 25mm (`retract_length − residual − retracted`), still landing Piece B at
+  ~33mm, the melt-pool top. **Third correction of a confident claim this session** — the melt-pool
+  value, the `simple_tip_forming` prediction, and now this. All three lost to direct measurement.
+  **Not yet verified on hardware: re-check square cuts on BOTH filaments.**
 - **2026-08-19** — ✅ **Tested back-to-back on wisp shape. The recommendation above was WRONG; the
   fallback won.** Result: **keep `simple_tip_forming: True`** (disabling it did not improve the wisp
   — so the "wiggle drags the wisp through hot metal" mechanism, though geometrically real, is not
