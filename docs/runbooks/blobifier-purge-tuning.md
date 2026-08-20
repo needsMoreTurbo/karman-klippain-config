@@ -215,15 +215,34 @@ inside the PTFE, and every swap deposits another one. This is a **direct consequ
 > **Update, 2026-08-18 — the PTFE→metal boundary is now measured, and it closes the distance
 > question for good.** User measurement: 3mm from the cutter to the top of the PTFE, 18.6mm of PTFE
 > tube, so the transition to metal sits **21.6mm below the cutter** = `blade_pos − 21.6` =
-> `69 − 21.6` = **47.4mm from the nozzle**. Two things fall out of this:
-> - Piece A's nominal pushback stop (≈40mm, from J4's 30mm stroke) is **already 7.4mm past** that
->   line. The 15→30mm pushback fix was never marginal on distance — it should have cleared the
->   transition with room to spare, and the jam happened anyway. This is now a *measured* confirmation
->   of the buckling conclusion, not just a plausible theory.
-> - The original Step-1 retract (tip 2→66mm) transits the **entire 47.4mm of metal heatbreak**, then
->   the full 18.6mm of PTFE, ending exactly at the PTFE's top edge (66mm) — a striking coincidence
->   with `retract_length` itself, though that value was derived independently (from the cut-boundary
->   bisection), so treat the match as observation, not causation, unless it recurs elsewhere.
+> `69 − 21.6` = **47.4mm from the nozzle**. Piece A's pushback stop is **well past** that line — see
+> the corrected figures immediately below — so the 15→30mm pushback fix was never marginal on
+> distance. It should have cleared the transition with room to spare, and the jam happened anyway.
+> A *measured* confirmation of the buckling conclusion, not just a plausible theory.
+
+> **⚠️ Correction, 2026-08-19 — `effective_retract_length` is 31mm, not 64mm.** An earlier pass
+> through this analysis used `extruder_filament_remaining = 0`; it is actually the residual (33).
+> **Verified against the log:** `Retracting filament 31.0mm prior to cut`, on every swap. Corrected
+> geometry, and what changes:
+> | quantity | was stated | actually |
+> |---|---|---|
+> | effective retract | 64mm | **31mm** (66 − 33 − 2) |
+> | tip travel in Step 1 | 2 → 66mm | **33 → 64mm** (starts at the melt-pool top) |
+> | Piece B nominal size | 3mm | **5mm** (69 − 64) |
+> | wiggle depth | tip to 34mm | **tip to 48.5mm** (E±15.5, not E±32) |
+> | Piece B after pushback | ≈40mm | **34–39mm**, wisp end ~25mm |
+>
+> Three consequences, and the third is the important one:
+> - **The cut model is not broken.** Nominal Piece B is 5mm and the user measured a **6mm** solid
+>   chunk — within measurement error. The earlier "fragment is 5× the model" framing was an artifact
+>   of the bad number. The *entire* discrepancy is the ~9mm wisp; the chunk was never the problem.
+> - **Pushback clears the boundary by even more than thought.** Piece B lands at 34–39mm — 13.4mm
+>   past the 47.4mm transition — and the wisp's free end reaches ~25mm, *inside the melt pool*, where
+>   it should simply remelt and purge away. The destination is correct; the failure is in transit.
+> - **The wiggle's tip never reaches the melt zone** (48.5mm, 15.5mm clear of it) — so F1's original
+>   "dips into the reservoir" rationale was wrong. But the **wisp**, hanging ~9mm below the tip, dives
+>   to ~39.5mm: about **8mm inside the hot metal heatbreak**. F1 survives the correction with a better
+>   mechanism than it had.
 
 ### Other candidates, ranked
 2. **Heat creep from longer swaps.** A 140 mm purge at `purge_spd: 400` adds ~21 s of extrusion per
@@ -279,18 +298,29 @@ problem, change `retract_length` (J5), which moves it directly and in isolation.
 Two items identified while working through the wisp mechanism above. **Do not start these yet** —
 parked here so they aren't lost, not queued as the next action.
 
-- **F1 — reduce the wisp length at the source, instead of surviving it.** Every fix tried so far
-  (pushback distance, the PTFE swap) treats the wisp as a given. It may be avoidable: the pre-cut
-  `simple_tip_forming` wiggle (`mmu_cut_tip.cfg` step 1b; `variable_simple_tip_forming` in
-  `mmu_macro_vars.cfg`) advances the tip from 66mm back down to 34mm — now known to be **13.4mm past
-  the measured PTFE/metal transition (47.4mm)** and within ~1mm of the melt-zone top (ρ=33mm) — then
-  retracts it to 66mm again, immediately before the blade fires. That's a full second transit of the
-  PTFE/metal boundary plus a second dip into the standing melt reservoir, right before the cut: a
-  strong second (or primary) candidate for where the wisp actually forms, distinct from the original
-  Step-1 retract. Candidates to test later: disable `simple_tip_forming`, or shorten the wiggle so it
-  doesn't reach back down past the boundary. See the "wiggle between ①→②" figure in
-  [Tip-Cut Anatomy](https://claude.ai/code/artifact/cbab05b3-1215-4832-bc5a-977eba6ba92c) for the
-  exact numbers.
+- **F1 — reduce the wisp length at the source, instead of surviving it.** ⭐ **Now the recommended
+  next action** (see the 2026-08-19 correction in the status log — F1's original rationale used a
+  wrong retract figure; the corrected geometry makes the case *stronger*, not weaker).
+  **Action:** `SET_GCODE_VARIABLE MACRO=_MMU_CUT_TIP_VARS VARIABLE=simple_tip_forming VALUE=False`
+  (live, no restart, instantly reversible, zero coupling to cut geometry or purge math).
+  **Mechanism:** the wisp forms during Step 1's *mandatory* 31mm retract, which drags molten material
+  out of the pool — unavoidable, the filament has to reach the blade. But `simple_tip_forming` then
+  adds an *optional* `E+15.5 / E−15.5` round trip (hardcoded as half the effective retract — there is
+  **no** variable to shorten it, so on/off is the only lever). The **tip** stays in the PTFE
+  throughout (64 → 48.5 → 64mm, never reaching the melt zone) — but the **wisp hanging ~9mm below it**
+  dives from ~55mm to ~39.5mm, roughly **8mm inside the hot metal heatbreak**, where a sub-millimetre
+  thread softens almost instantly, and is then drawn back out. That is a second soften-and-stretch
+  cycle applied to the exact feature that jams, and it is the only optional one.
+  **What "better" looks like:** shorter/absent wisp on the extracted fragment; the 6mm solid chunk
+  should be unchanged (it already matches the 5mm model).
+  **Risk:** HH says the wiggle "adds some additional cooling time … may help avoid potential
+  clogging." Losing it means less dwell before the blade. Watch for a less-square cut face — the
+  servo-down (500ms) and travel moves still provide some cooling. Revert instantly if cuts degrade.
+  **If that is not enough, second lever:** raise `extruder_move_speed` (currently 25 mm/s) to ~40.
+  A faster pull tends to rupture a molten thread rather than draw it long. Also live-settable on
+  `_MMU_CUT_TIP_VARS`. Watch for extruder slip — run_current is only 0.45 A.
+  See the "wiggle between ①→②" figure in
+  [Tip-Cut Anatomy](https://claude.ai/code/artifact/cbab05b3-1215-4832-bc5a-977eba6ba92c).
 
 - **F2 — confirm T0 and T1 filament behave the same under these settings.** Jams are *suspected, not
   confirmed* to happen preferentially with T1 (LDO ABS, dark teal) loaded rather than T0 (Polymaker
@@ -317,9 +347,11 @@ yet** — do these in order, each gates the next:
    - **Fixed** → jam regression closed (log in `docs/decisions.md` that pushback distance was a red
      herring, confirmed by measurement — nominal pushback already clears the PTFE/metal boundary by
      7.4mm — and the PTFE transition/geometry was the real lever), go to step 2.
-   - **Still jamming** → J2 is done (boundary measured at 47.4mm, see above); go straight to J5
-     (`retract_length: 66 → 63` — may shorten the wisp itself, not just relocate it), then F1 (the
-     tip-forming wiggle, which now also transits 13.4mm past the measured boundary — see above).
+   - **Still jamming** → J2 is done (boundary measured at 47.4mm). **Go to F1 first, not J5** —
+     `simple_tip_forming: False` is a single live boolean with no coupling, and the corrected geometry
+     (2026-08-19) shows it is the only *optional* step that drags the wisp through hot metal. J5
+     (`retract_length: 66 → 63`) is the fallback after that; note it also shrinks the wiggle, since
+     the wiggle is hardcoded to half the effective retract, so run F1 first or the two confound.
 2. **Only after the jam is confirmed fixed — resume Step 5,** the real 2-colour print acceptance
    test. This is the actual blocking item for the runbook itself; everything up to floor 140 is
    still only proxy-verified (blob tail, not the part).
@@ -458,3 +490,20 @@ yet** — do these in order, each gates the next:
   second full crossing, strengthening it as the wisp's likely origin. Artifact and runbook plan
   updated to match; noted the retract_length(66)≈PTFE-top(66) coincidence but flagged it as
   unexplained, not causal.
+- **2026-08-19** — ⚠️ **Correction: `effective_retract_length` is 31mm, not 64mm.** The 2026-08-18
+  analysis used `extruder_filament_remaining = 0`; it is the residual (33). Verified against the log
+  (`Retracting filament 31.0mm prior to cut`, every swap). Full corrected table in the regression
+  section above. Net effect: **the cut model is vindicated** — nominal Piece B is 5mm vs the 6mm
+  chunk measured, so the "fragment is 5× the model" framing was wrong and the entire discrepancy is
+  the ~9mm wisp. Pushback lands Piece B at 34–39mm with the wisp reaching into the melt pool, so the
+  destination was always right and the failure is purely in transit. F1's rationale was wrong in
+  detail (the wiggle's *tip* stops 15.5mm short of the melt zone) but **right in conclusion**: the
+  wisp hanging below the tip still dives ~8mm into the hot metal heatbreak and is drawn back out.
+  Artifact and runbook both corrected.
+- **2026-08-19** — 🎯 **Recommended remediation for the wisp: `simple_tip_forming: False`** (F1
+  above). Rationale: the Step-1 retract that creates the wisp is mandatory; the wiggle that softens
+  and re-stretches it is not. Single live boolean, no coupling, instantly reversible. There is no
+  variable to shorten the wiggle — it is hardcoded to `effective_retract_length / 2` in the
+  framework-owned `mmu_cut_tip.cfg`, so on/off is the only available lever. Second lever if
+  insufficient: `extruder_move_speed` 25 → ~40 mm/s (faster pull ruptures a molten thread rather than
+  drawing it long; watch for extruder slip at 0.45 A). **Not yet run — no result.**
