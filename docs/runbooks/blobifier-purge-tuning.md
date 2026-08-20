@@ -341,13 +341,38 @@ parked here so they aren't lost, not queued as the next action.
   ```
   - ✅ **Shows:** the blade-cut face on **Piece A** — i.e. whether disabling tip forming degrades cut
     squareness, which is the actual *risk* of the change.
-  - ❌ **Does NOT show the wisp.** The wisp lives on **Piece B**, the fragment that stays in the
-    hotend and is purged out on the next swap; Piece A never has one. Inspecting the wisp requires
-    either waiting for a jam and extracting it (how the 6mm+9mm measurement was obtained), or a cold
-    pull at ~100 °C, which fuses everything together and shows *that* a fragment existed rather than
-    its shape.
+  - ❌ **Does NOT show the wisp** *as written above* — the wisp lives on **Piece B**, the fragment
+    left in the hotend; Piece A carries only the blade cut face. **But see the no-cut variant below,
+    which does.**
   - 📊 **The real measure is jam frequency over N swaps.** The tip photos only tell you the change
     didn't break the cut.
+
+  **Test protocol B — inspect the WISP directly, no teardown (2026-08-19).**
+  Key insight: **before the cut, the wisp is still attached to the filament.** The cut is the only
+  thing that separates Piece B from Piece A. Skip the cut and a normal unload delivers the wisp to
+  your hand at the gate — no need to recover Piece B at all.
+  **Remove the cutter blade physically** (one screw). There is no software route: `gantry_servo_enabled`
+  is already `False` here, so the depressor is passive and the cut is driven purely by the x20→x0
+  move; suppressing it would mean rewriting `pin_loc_compressed_xy`, a coordinate inside the
+  back-left keep-out zone — not worth the collision risk.
+  ⚠️ **`pushback_length` MUST be zeroed or the sample is destroyed.** With the blade out the macro
+  still runs pushback, which drives the tip back down to ~35mm — 2mm above the melt pool — cooking
+  the wisp before you see it. At 0 the whole block is skipped (`{% if effective_pushback_length > 0 %}`).
+  ```
+  M109 S260
+  SET_GCODE_VARIABLE MACRO=_MMU_CUT_TIP_VARS VARIABLE=pushback_length VALUE=0
+  MMU_EJECT                    # SAMPLE 1 — tip forming ON (baseline wisp)
+  T0                           # re-insert at the gate first
+  SET_GCODE_VARIABLE MACRO=_MMU_CUT_TIP_VARS VARIABLE=simple_tip_forming VALUE=False
+  MMU_EJECT                    # SAMPLE 2 — tip forming OFF
+  SET_GCODE_VARIABLE MACRO=_MMU_CUT_TIP_VARS VARIABLE=pushback_length VALUE=30   # restore
+  ```
+  Caveats: (a) the wisp must survive being dragged through the extruder gears and 1.5m of bowden — if
+  sample 1 shows no wisp, read that as "did not survive", not "no wisp"; (b) this deliberately unloads
+  an *unformed* tip, exactly what tip forming exists to prevent, so a bowden snag is possible —
+  `MMU_RECOVER` if HH desyncs, never `MMU_TEST_MOVE`; (c) HH will believe the tip is at 70mm
+  (`blade_pos + rip_length`) when it is really ~65, since no cut occurred — absorbed by the reverse
+  homing on unload, and the blade counter increments for a cut that never happened (cosmetic).
 
 - **F2 — confirm T0 and T1 filament behave the same under these settings.** Jams are *suspected, not
   confirmed* to happen preferentially with T1 (LDO ABS, dark teal) loaded rather than T0 (Polymaker
