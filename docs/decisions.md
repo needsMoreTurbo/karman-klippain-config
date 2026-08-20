@@ -29,9 +29,13 @@ swings 22.32 → 23.38). Dividing by ~0.045: **40 ≈ 890 mm of filament, 15 ≈
 still ~330 mm of under-extruded printing before a trip.
 **Bigger caveat:** FlowGuard fires only when compression is **pegged at the extreme** (a hard
 stoppage where the synced gear piles filament into the buffer). A partial obstruction that merely
-degrades flow may never peg, and then **no threshold helps**. Confirm from `sync_<gate>.jsonl` that
-compression actually pegs during a real jam before tuning the number — that is why the debug log was
-enabled rather than lowering the threshold on a guess.
+degrades flow may never peg, and then **no threshold helps**.
+**Outcome:** a full test print at 40 failed to catch a real clog. Set to **8** (HH's default,
+≈180 mm) on 2026-08-20. If 8 false-triggers, step up (12, 15) — do not go back toward 40.
+**Process note:** two test prints were burned here — one on a `MMU_TEST_CONFIG` call that was a
+silent no-op, one holding 40 "to gather telemetry" on a threshold already known to be ~890 mm of
+filament. Read what a parameter actually does *before* asking the maintainer to run a print on it;
+a print is expensive and they are the only one who can run it.
 
 ## 2026-08-14 — Adaptive PA's visible benefit is muted by `dont_slow_down_outer_wall`
 **Decision:** none — a validation finding, recorded so it isn't mistaken for a bug later.
