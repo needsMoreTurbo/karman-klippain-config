@@ -152,3 +152,12 @@ auto-checks the keep-out zones above. Expect "clean" on all scenarios. Cheaper a
 re-jogging by hand — but it can't see HH's internal Python moves, which it marks "inferred".
 
 There is **no** offline Klipper config linter — the authoritative check is `FIRMWARE_RESTART` on the Pi after deploy.
+
+⚠️ **`FIRMWARE_RESTART` reloads `.cfg` files, but NOT Klipper `extras/*.py` modules** (e.g. the
+BDPressure sensor, `bdpressure.py`, symlinked from `~/bd_pressure`). Klipper restarts inside the
+same Python process, so `sys.modules` keeps the copy imported at boot. A patched module needs a
+host restart: `ssh ernst@192.168.1.240 'sudo systemctl restart klipper'` or
+`curl -X POST 'http://192.168.1.240:7125/machine/services/restart?service=klipper'`. When a `.py`
+change adds a new config option, skipping this produces a *misleading* error blaming the config
+file — `Option 'x' is not valid in section 'y'` — because the stale module never reads it.
+See `docs/decisions.md` 2026-09-03.

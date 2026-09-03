@@ -1,3 +1,43 @@
+## 2026-09-03 — A diagnostic accessory took the whole printer down; accessories get guarded, not trusted
+**Decision:** `probe_mode_on_homing: 0` in `bdpressure.cfg`, plus a patch to `bdpressure.py`
+(fork `karman-patches`) that guards every port access. **Generalisation: any Klipper module that
+registers an event handler on a motion path must not be able to raise out of it.**
+**What happened:** at 15:46:48 the BDPressure CH340 dropped off the USB bus by itself — a storm of
+`clear tt 3 error -32` (hub transaction-translator errors; it shares hub `3-1` with the webcam),
+then `USB disconnect`. It re-enumerated 6.5 min later as **ttyUSB1**, but Klippy still held the fd
+for the vanished ttyUSB0. Nothing complained for 33 minutes. At 16:14 an ABS print started; at
+16:19:45 `contact_auto_calibrate` ran `G28`, which fires `homing:homing_move_begin` →
+`set_probe_mode()` → `usb.write('e;')` → `OSError(EIO)`. That escaped through `send_event()` inside
+`homing_move()`, and Klipper turns *any* non-`CommandError` exception into
+`Internal error on command:"G28"` → **full shutdown, all four MCUs emergency-stopped**, five
+minutes into a 3 h 15 m print.
+**Why the hook existed at all:** vendor code re-asserts probe mode on every homing move. Karman
+never uses this sensor as a probe — the vendor `[probe]` section is deliberately omitted because
+Beacon owns probing — so the hook was **pure risk for zero function**. Turning it off is the real
+fix; the exception guards are the seatbelt for the paths that remain.
+**The trap that made this expensive:** the hazard was already written down in `overrides.cfg`, but
+phrased as *"a cable pulled mid-session makes the next G28 throw"* — framing it as an operator
+action. **USB devices unplug themselves.** A hazard whose trigger is written as a human mistake
+reads as avoidable and never gets fixed; write the trigger as the failure mode, not the finger.
+**Second trap — the failure is silent and delayed.** 33 minutes and a whole `START_PRINT` passed
+between the disconnect and the bang, so the log evidence is nowhere near the symptom. The module
+now announces `sensor OFFLINE` once, when the fault is first touched.
+**Physical root cause, still open:** the CH340 is a 12 Mbit full-speed device sharing a hub TT with
+a 480 Mbit webcam that Crowsnest streams continuously. Move it to a root port or a camera-free hub.
+**Deployment gotcha found while verifying this — `FIRMWARE_RESTART` does NOT reload a `.py`
+module.** Klipper's restart builds a fresh `Printer` object *in the same Python process*, and
+`load_object()` goes through `importlib.import_module`, so `sys.modules` still holds the copy
+imported at boot. A patched `extras/*.py` needs a **host restart**
+(`systemctl restart klipper`, or `POST /machine/services/restart?service=klipper`). The failure is
+worse than a silent no-op: the old code doesn't read the new config option, so Klipper's
+`check_unused_options` rejects it as *"Option 'probe_mode_on_homing' is not valid in section
+'bdpressure bd_pa'"* — an error that points at the config file when the config file is correct.
+Two restarts were burned chasing that. `.cfg` edits are fine with `FIRMWARE_RESTART`; `.py` edits
+are not.
+**Not the cause, though it looked like it:** the chamber soak timed out ~30 s earlier (47.2 of a
+48.0 minimum). That is the documented designed behaviour — see 2026-08-02 below — and it merely
+released START_PRINT into the homing move where the pre-armed fault was waiting.
+
 ## 2026-08-20 — Some `MMU_TEST_CONFIG` parameters are silent no-ops (sync-feedback / FlowGuard)
 **Decision:** treat `sync_feedback_debug_log` and `flowguard_max_relief` as **startup-only**. Edit
 `mmu_parameters.cfg` and `FIRMWARE_RESTART`; never trust `MMU_TEST_CONFIG` for them.
