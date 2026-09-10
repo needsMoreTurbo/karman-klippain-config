@@ -12,9 +12,14 @@ a 2-colour print (2026-07-24). Remaining work is tuning, safety loose ends, and 
 3. **Tune `flowguard_max_relief`** — still at the switch-era 40; walk toward ~15 now the PSF is
    calibrated. Do *after* a clean print so false-trip debugging isn't confounded.
 4. **Commit + push** the pending batch (workflow tooling, decisions.md, runbooks, hooks).
-5. **Open `/hooks` once** (or restart the session) to activate the new hooks and skills — they
+5. **Commit the HelixScreen fixes** (caselight scale + decisions.md entry, the untracked
+   `printer_data/config/helixscreen/` app-config directory, the Moonraker update-manager
+   registration) — runbook: `docs/runbooks/helixscreen-migration.md`.
+6. **Reboot the Pi to verify** the HelixScreen rotation and caselight fixes survive a cold boot,
+   not just a service restart — same runbook.
+7. **Open `/hooks` once** (or restart the session) to activate the new hooks and skills — they
    were added after this session started, so the settings watcher hasn't picked them up.
-6. Then the next big objective: **relocate the NightOwl** (roadmap #6) — worth a `/brief`.
+8. Then the next big objective: **relocate the NightOwl** (roadmap #6) — worth a `/brief`.
 
 _Resolved watch item: the 0.45 A extruder current is fine in practice — no skipping observed in real prints/purges. The NightOwl "skipping" was the gate-0 mirrored nightwatch latch not holding (fixed by a 99% reprint; see NightOwl internals for gate 1)._
 
@@ -26,11 +31,14 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 3. [x] **Reprint** blobifier + brush parts as needed.
 4. [x] **New brush** — installed + configured, with park on the nozzle rest.
 5. [x] **Blobifier** — reassembled, wired, working and owning purge.
-6. **Finalize NightOwl position** — relocate closer to the filament-load side; wire to printer 24 V via microfit; **re-run bowden cal** for the shorter run.  ← *next big one*
-7. **Optimize the toolchange sequence:**
+6. **HelixScreen UI migration** — in progress alongside the MMU work, not blocking it: rotation
+   and caselight bugs fixed, repo commits and settings tuning still open, KlipperScreen
+   replace-vs-coexist decision deferred. — runbook: `docs/runbooks/helixscreen-migration.md`
+7. **Finalize NightOwl position** — relocate closer to the filament-load side; wire to printer 24 V via microfit; **re-run bowden cal** for the shorter run.  ← *next big one*
+8. **Optimize the toolchange sequence:**
    - retract → move to cutter → cut → fast retract while fast-moving to blobifier → load + execute blobifier → shake bin → wipe nozzle → return to print.
    - tune purge amount (accounting for the pre-cut retraction).
-8. **Spoolman integration.**
+9. **Spoolman integration.**
 
 ## Filamatrix
 ### CURRENT geometry (relocated BACK-LEFT 2026-07-17): contact **15, 341** → compressed **0, 341**, cut plane **z=15** (clears the shaker arm; enforced by `min_toolchange_z: 15`). Validated by real swaps post-rework.
@@ -164,6 +172,47 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
   doesn't, and the law-driven expansion to a full matrix if it does. Includes the refit helper
   Appendix B flags as missing, and validation on a real second filament.
   — runbook: `docs/runbooks/pa-calibration-sop.md`
+- [ ] **Calibrate PA for the placeholder `material_parameters` entries** — added 2026-09-10 so
+  START_PRINT stops rejecting Orca's type strings (a `MATERIAL=PETG` print aborted with *"Add this
+  new material to your material_parameters variable!"*). Klippain's START_PRINT applies these over
+  `[extruder]`, and only ABS is measured (ASA reuses its 0.032). Placeholders in `variables.cfg`:
+
+  | Keys | PA now | Source |
+  |---|---|---|
+  | `PETG`, `PETG-CF` | 0.065 | Klippain stock `PET` copy — likely high on the UHF (ABS went 0.048 → 0.032) |
+  | `TPU` | 0.050 | Klippain stock |
+  | `PA` `PA-CF` `PA-GF` `PA6` `PA6-CF` `PAHT` `PC` `PC-CF` | 0.032 | ABS's measured value, as a starting point |
+
+  **PETG first** — it's the one in active use, and it doubles as the "real second filament" the SOP
+  task above needs. Only `pressure_advance` and `additional_z_offset` are live on Karman (firmware
+  retraction, filter and filament-sensor includes are commented out in `printer.cfg`).
+  — runbook: `docs/runbooks/pa-calibration-sop.md`
+
+## HelixScreen UI migration
+- [x] **Fix screen rotation** (was rendering upside down) — `display.rotate` in
+  `~/helixscreen/config/settings.json` + `systemctl restart helixscreen`; confirmed via journal
+  (`Watchdog] Display rotation: 180°`, process running as `helix-screen --rotate=180`).
+- [x] **Fix caselight brightness** (100% commanded from KlipperScreen/HelixScreen landed at ~1%
+  actual) — root cause: `[output_pin caselight]`'s Klippain-set `scale: 100` isn't honored by
+  either UI's generic pin/LED control, which always sends `SET_PIN VALUE` as a 0.0–1.0 fraction.
+  Fixed in `overrides.cfg` (`scale: 1` + a `LIGHT_ON`/`LIGHT_OFF` override doing the `/100`
+  itself); validated via `render_macro.py`, not yet on hardware. — runbook:
+  `docs/runbooks/helixscreen-migration.md`
+- [ ] **Commit the HelixScreen-related repo changes** — caselight fix + decisions.md entry,
+  `moonraker.conf` update-manager registration, and the untracked
+  `printer_data/config/helixscreen/` app-config directory (env/themes/printer_database.d;
+  `crash_history.json` → `.gitignore`). — runbook: `docs/runbooks/helixscreen-migration.md`
+- [ ] **Verify rotation + caselight survive a real Pi reboot**, not just a service restart. —
+  runbook: `docs/runbooks/helixscreen-migration.md`
+- [ ] **Dial in the rest of `settings.json`** (theme, sleep/dim timers, touch calibration,
+  gcode/bed-mesh render mode, per-printer macro bindings) — `settings.json.template`'s inline
+  comments are the reference. — runbook: `docs/runbooks/helixscreen-migration.md`
+- [ ] **Decide HelixScreen vs. KlipperScreen long-term** (replace or run both) — deferred until
+  HelixScreen has been used through a few real prints. — runbook:
+  `docs/runbooks/helixscreen-migration.md`
+- [ ] *(optional)* **Install a second HelixScreen instance on a laptop** (Moonraker client only,
+  `192.168.1.240:7125`) for faster iteration on printer/macro settings — doesn't cover
+  display-hardware settings, which stay Pi-side. — runbook: `docs/runbooks/helixscreen-migration.md`
 
 ## Miscellaneous
 - [x] **Audit START_PRINT for no-op / hardware-stale steps** — ✅ done and **verified on hardware
@@ -179,6 +228,13 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
   filament stays loaded in the UHF melt zone through cooldown. Same kind of audit as START_PRINT.
 - [ ] **Reconsider "MMU profiles must send CHAMBER=0"** (`docs/decisions.md` 2026-07-14) — that rule
   was a workaround for `chamber_temp_tolerance: 0.0`, which is now 2.0. Keep setpoints ≤ ~55 °C.
+- [ ] **Fuzz the Beacon contact point** so the two nozzle touches per print stop wearing one spot on
+  the PEI — runbook: `docs/runbooks/beacon-contact-fuzzy-position.md`. Adopted from RatOS's
+  `beacon_contact_start_print_true_zero_fuzzy_position`, but it can't be a straight port: our
+  `[beacon] home_xy_position: 175,175` is read at config time and pins every
+  `G28 Z METHOD=CONTACT`, so the hooks have to call `BEACON_AUTO_CALIBRATE` at a fuzzed point
+  instead. Radius is bounded by `bed_mesh zero_reference_position` (also 175,175), **not** by
+  clearance: measured worst mesh deviation over the chosen ±10 mm patch is 0.018 mm.
 - [ ] **Purge lengths are sized for a standard hotend, not the UHF** — runbook:
   `docs/runbooks/blobifier-purge-tuning.md` (Klipper-side fix via `purge_length_minimum`; acceptance
   is a clean colour change *on the part*). Do this AFTER the START_PRINT
