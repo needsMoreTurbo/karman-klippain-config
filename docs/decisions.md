@@ -1,3 +1,77 @@
+## 2026-09-12 — MCU dropouts are USB-level; journald made persistent, uhubctl 2.6.0 built from source
+**Root cause found (2026-09-13): a bad pin in the Microfit connector where the Nitehawk umbilical
+meets its USB adapter board.** It surfaced when the toolboard stopped enumerating entirely after a
+round of cable moves: 24V/3V3/ACT LEDs on (STM32 running Klipper — firmware sets `!PC6` at startup)
+but **HUB LED off**, and `usb1-port1` read `not attached` with no kernel activity at all. Swapping the
+Pi→adapter cable changed nothing (the original cable failed too); handling the connector made the hub
+flap (up 1.4 s, up 0.2 s, then stable). Maintainer re-pinned the whole connector → HUB LED on, all
+devices enumerate, `FIRMWARE_RESTART` → ready. This explains the toolhead-side drops (hub-level
+`usb 1-1: USB disconnect`, instant recovery). **Not yet proven fixed** — past drops were days apart.
+**Still unexplained:** (a) the hub still enumerates at 12 Mbit after the repin, so that pin was not
+what blocked high-speed; (b) the Sep 11 MMU drop is on the K-Hub, not the umbilical (the 3 s `usb 3-1.4`
+blip at 21:30:12 on Sep 12 coincided with the maintainer reseating USB cables — likely not a fault).
+Watching the MMU to see whether Sep 11 was a one-off.
+**Recovery trap — the MMU board stays powered when the printer is switched off** (it runs from a
+dedicated 24 V brick; moving it onto the printer supply is planned, which removes this trap and one
+of the separate supplies tied together through USB grounds). It keeps Klipper's
+shutdown state across power cycles, so every start fails with `Can not update MCU 'mmu' config as it
+is shutdown` until a `FIRMWARE_RESTART` resets it. And `FIRMWARE_RESTART` can only reset an MCU whose
+USB link is up: after a drop it logs `Unable to issue reset command on MCU 'x'` and silently skips
+it. If that line appears, power-cycle that board, then restart again.
+**Finding:** the "firmware crashes `FIRMWARE_RESTART` won't fix" are USB devices leaving the bus,
+not Klipper faults — same class as the 2026-09-03 CH340 dropout below. Signatures: `Got EOF when
+reading from device` (Sep 9, toolhead) or a retransmit storm (Sep 11, mmu: `bytes_retransmit`
+9→152 in 3 s, `rto` 3.2) → `Timeout with MCU` → shutdown; afterwards `Unable to open serial port …
+No such file or directory`. `FIRMWARE_RESTART` reopens a device node — it cannot make USB
+re-enumerate, so it only "works" once the device comes back by itself. **Reboots don't reliably
+fix it either:** Sep 7 was *four* host boots in 78 min (toolhead absent after boots 1–2, mmu after
+boot 3, clean on 4). Only hub-attached MCUs have dropped; the root-port `mcu` never has.
+`bytes_invalid` stayed 0 and bed heating didn't correlate (Sep 9 bed at 100 °C, Sep 11 cold).
+**First kernel capture (same day, 21:08:55):** `usb 1-1: USB disconnect` — the Nitehawk's *hub
+itself* dropped off the Pi's root port, taking Beacon and the toolhead MCU with it. No
+`error -71` / `clear tt` / over-current / reset beforehand. The hub re-enumerated in 0.5 s and both
+devices were back in 1.8 s (again at 12 Mbit), so one `FIRMWARE_RESTART` suffices for this variant.
+Context: manual MMU recovery — two `G1 E50` at 255 °C with gear sync active, then `CLEAN_NOZZLE`
+~14 s before the drop (brushing had finished). Localizes the fault to the hub / umbilical / USB
+adapter / toolboard-power path — not Beacon, the STM32, Klipper, or bandwidth. (Sep 9's toolhead
+drop came after 100 min idle, so filament motion isn't the whole story.)
+**Hardware (corrected same day):** toolhead + Beacon sit behind the Nitehawk-SB v2's *onboard*
+hub (`1a86:8091`, QinHeng). It runs at 12 Mbit although it is high-speed capable: it is the only
+one of five full-speed devices that answers the kernel's device-qualifier probe (`usb 1-1: not
+running at top speed`; Beacon and all three MCUs correctly refuse). So the high-speed handshake
+across the umbilical + USB adapter board is failing — a **signal-quality symptom, not a bandwidth
+limit**. mmu + CH340 sit behind a BTT K-Hub (`1a40:0101`, fed from 24 V) running at its full
+480 Mbit; its single TT (`bDeviceProtocol=01`) is by design. Downstream devices cannot lower a
+hub's own link speed. Nothing is short of bandwidth: from 1-s Klipper stats (Sep 11) every device
+peaks under 1 % of 12 Mbit (mcu 11 kB/s, beacon 7.2, mmu 5.4, toolhead 4.8). Both hubs are
+self-powered, so the Pi 5's 600 mA USB cap (3 A PSU, no USB-PD,
+`/proc/device-tree/chosen/power/max_current` = 3000) carries essentially only the C920 — the PSU
+is under-spec for a Pi 5 but an unlikely dropout cause; do **not** set `usb_max_current_enable=1`
+on the 3 A brick. **Open lead:** LDO's Nitehawk-SB v2 docs ("ESD Hardening") name communication
+loss as an ESD symptom, from filament friction in the reverse bowden charging the extruder, and
+specify grounding the extruder motor body to the toolboard and the USB adapter board to the frame
+— directly relevant with a 2 m MMU bowden. **Maintainer confirmed both grounding cables and the
+umbilical chain-end zip-ties are installed**, so this is not a missing-mitigation case.
+**Decision 1 — journald `Storage=persistent`, `SystemMaxUse=500M`** (was `volatile`, an SD-wear
+setting that is moot on NVMe). Every earlier incident's kernel log died with the next reboot.
+**Trap:** editing the conf and restarting journald is not enough on systemd 252 — the boot-time
+flush ran while storage was volatile, so nothing moves to `/var` until `journalctl --flush`.
+Backup at `/etc/systemd/journald.conf.bak`. After the next dropout:
+`journalctl -k -b -1 | grep -iE 'usb|clear tt|disconnect|over-current'` (`-b 0` if no reboot).
+**Decision 2 — uhubctl 2.6.0 from source (`~/uhubctl` @ tag v2.6.0 → `/usr/local/sbin`), not
+apt.** Bookworm's 2.5.0 predates Pi 5 support and builds the wrong root-hub sysfs path on kernel
+≥ 6.0 (`1:1.0/1-port1/disable` doesn't exist here; `1-0:1.0/usb1-port1/disable` does). The Pi 5's
+onboard hubs *advertise* per-port power switching (`ppps`) but all four ports share one VBUS,
+which drops only when every port is off. Recovery, printer idle or already shut down — drops
+every USB device including `mcu` and the webcam; SSH survives:
+`sudo sh -c 'for h in 1 2 3 4; do uhubctl -l $h -a 0; done; sleep 5; for h in 1 2 3 4; do uhubctl -l $h -a 1; done'`,
+then `FIRMWARE_RESTART`. **Not yet proven** to clear a real dropout.
+**Log-reading traps (both cost time here):** (1) The Pi has no RTC — `wtmp`/`last reboot` times
+are pre-NTP fake-hwclock values, wrong by ~1 h and duplicated. Date boots with `uptime -s`.
+(2) Conversely, the second number on klippy's `Start printer at … (unix mono)` line **is** host
+uptime (`CLOCK_MONOTONIC_RAW`) — a value near 10 means the host just booted. It's the reliable
+reboot marker; don't "correct" it against `wtmp`.
+
 ## 2026-09-03 — A diagnostic accessory took the whole printer down; accessories get guarded, not trusted
 **Decision:** `probe_mode_on_homing: 0` in `bdpressure.cfg`, plus a patch to `bdpressure.py`
 (fork `karman-patches`) that guards every port access. **Generalisation: any Klipper module that

@@ -60,6 +60,11 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 - [x] order usb port / cable for hex insert
 - [ ] cut and wire barrel jack connector
 - [ ] wire microfit wire internally to the printer
+  _Why it matters beyond tidiness (found 2026-09-13):_ on the dedicated brick the MMU MCU stays
+  powered when the printer is switched off, so it keeps Klipper's shutdown state across power
+  cycles — every cold start after a USB dropout fails with `Can not update MCU 'mmu' config as it
+  is shutdown` until a `FIRMWARE_RESTART` (which silently skips any board whose USB link is down).
+  It is also one more supply tied to the others through USB grounds. — `docs/decisions.md` 2026-09-12
 
 ## Blobifier
 ### Note: The bucket was reassembled and the optimum engagement point for the shaker arm is X = 3.0 mm and Z = 3.0 mm (SB is cradled within the shaker arm just right!)
