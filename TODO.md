@@ -34,7 +34,7 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 6. **HelixScreen UI migration** — in progress alongside the MMU work, not blocking it: rotation
    and caselight bugs fixed, repo commits and settings tuning still open, KlipperScreen
    replace-vs-coexist decision deferred. — runbook: `docs/runbooks/helixscreen-migration.md`
-7. **Finalize NightOwl position** — relocate closer to the filament-load side; wire to printer 24 V via microfit; **re-run bowden cal** for the shorter run.  ← *next big one*
+7. **Finalize NightOwl position** — relocate closer to the filament-load side; wire to printer 24 V + CAN via microfit from the Leviathan's CAN port (decided 2026-09-13 — `docs/mmu_can_bus.md`); **re-run bowden cal** for the shorter run.  ← *next big one*
 8. **Optimize the toolchange sequence:**
    - retract → move to cutter → cut → fast retract while fast-moving to blobifier → load + execute blobifier → shake bin → wipe nozzle → return to print.
    - tune purge amount (accounting for the pre-cut retraction).
@@ -65,6 +65,9 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
   cycles — every cold start after a USB dropout fails with `Can not update MCU 'mmu' config as it
   is shutdown` until a `FIRMWARE_RESTART` (which silently skips any board whose USB link is down).
   It is also one more supply tied to the others through USB grounds. — `docs/decisions.md` 2026-09-12
+  _Decided 2026-09-13:_ this Micro-Fit carries CAN as well as 24 V, from the Leviathan's J33 CAN port
+  with the Leviathan as USB-to-CAN bridge (replaces the ERB's USB-C link). Wiring checks, flashing
+  and config: `docs/mmu_can_bus.md` · why: `docs/decisions.md` 2026-09-13.
 
 ## Blobifier
 ### Note: The bucket was reassembled and the optimum engagement point for the shaker arm is X = 3.0 mm and Z = 3.0 mm (SB is cradled within the shaker arm just right!)

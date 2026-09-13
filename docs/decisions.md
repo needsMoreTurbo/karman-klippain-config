@@ -1,3 +1,36 @@
+## 2026-09-13 — MMU (ERB V2) moves to CAN through the Leviathan's USB-to-CAN bridge
+**Decision:** the ERB V2 drops USB-C and its dedicated 24 V brick for one 4-wire Micro-Fit cable
+(24 V / GND / CAN_H / CAN_L) from the Leviathan V1.3's `CAN_BUS` port (J33). The Leviathan runs
+Klipper in USB-to-CAN bridge mode; `[mcu]` and `[mcu mmu]` in `mcu.cfg` move from `serial:` to
+`canbus_uuid:`, and the ERB's Katapult (currently a USB build) is rebuilt for CAN. Procedure, pinouts
+and traps: `docs/mmu_can_bus.md`. **Status:** Leviathan-side connector made; not yet wired or flashed.
+**Why:**
+- Removes the dedicated brick — and with it the powered-while-printer-off recovery trap and one more
+  supply tied in through USB grounds (2026-09-12 entry below).
+- Takes the MMU off USB. In bridge mode its traffic rides the Leviathan's root-port link, the one MCU
+  link that has never dropped; the Sep 11 MMU drop was a retransmit storm behind the K-Hub.
+- CAN survives the wiring faults USB doesn't: both transceivers are rated for 24 V on the bus pins
+  (Leviathan TJA1057 ±42 V, ERB MCP2542 ±58 V), and a short never reaches the Pi. 24 V on USB D+/D−
+  would travel back to the Pi's hub.
+- The hardware was already in place: J33 is exactly 24 V/GND/CAN_H/CAN_L on Micro-Fit with a
+  termination jumper, the Leviathan already has Katapult, and the Pi already has `can0` host config.
+**Rejected:**
+- *USB-C for data, only 24 V moved to the printer* — still two cables and a non-latching USB-C plug.
+- *USB over the 4-wire cable via the spare Nitehawk V1 USB adapter* — viable (the adapter has D+/D−
+  clamps, TVS, 5 A fuse) and needs no firmware change, but D+/D− would share one ground with motor
+  current in an untwisted cable (LDO's adapter pairs a ground with each signal), and the MMU stays on USB.
+- *Dedicated USB-CAN adapter (BTT U2C)* — leaves the Leviathan untouched and keeps updates to one
+  board, but adds a board and another 24 V tap that J33 already provides.
+**Cost accepted:** every Klipper update flashes the ERB first and the Leviathan last (reflashing the
+bridge takes `can0` down), and a Leviathan USB drop now also takes the MMU (either already shuts
+Klipper down).
+**Looks wrong, isn't:** CAN_H/CAN_L sit on pins 3/4 of J33 but 4/3 of the ERB's X1 — the cable must
+cross them. FYSETC's JP3/JP4 graphic and schematic number the jumper pins oppositely. And
+`mmu/base/mmu.cfg`'s `[mcu mmu] serial:` is dead — `[include mmu/base/mmu_*.cfg]` doesn't match it.
+**Evidence:** desk research only — FYSETC ERB V2.0 schematic, LDO Leviathan V1.3 KiCad, LDO Nitehawk
+USB Adapter V1.5.1 schematic, transceiver datasheets, and read-only Pi inspection (Katapult/Klipper
+`.config`, shell history, `/etc/systemd/network/25-can.network`). Nothing wired or tested yet.
+
 ## 2026-09-12 — MCU dropouts are USB-level; journald made persistent, uhubctl 2.6.0 built from source
 **Root cause found (2026-09-13): a bad pin in the Microfit connector where the Nitehawk umbilical
 meets its USB adapter board.** It surfaced when the toolboard stopped enumerating entirely after a

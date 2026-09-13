@@ -127,7 +127,9 @@ the session/runbook system) · `start_print_walkthrough.md` ·
 wrong, what the sensor cannot measure, and the calibration protocol; code-level notes live in
 `physics/README.md`) ·
 **MMU:** `mmu_purge_volume.md` (how purge length is computed),
-`mmu_slicer_setup.md` (OrcaSlicer checklist), `mmu_standalone_swap_plan.md` (standalone-swap runbook).
+`mmu_slicer_setup.md` (OrcaSlicer checklist), `mmu_standalone_swap_plan.md` (standalone-swap runbook),
+`mmu_can_bus.md` (ERB on CAN via the Leviathan's USB-to-CAN bridge — pinouts, wiring checks, flashing
+Katapult/Klipper over CAN, recovery).
 `TODO.md` holds the build backlog; `docs/runbooks/` the per-objective runbooks; `NOTES.md` is the
 maintainer's scratchpad of hardware measurements.
 
