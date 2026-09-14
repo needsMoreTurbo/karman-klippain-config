@@ -2,12 +2,11 @@
 
 **Objective:** colour changes complete cleanly on the part. Fix the measured under-purge on
 light→dark swaps without making dark→light wasteful. **Klipper-side only.**
-**Status:** 🔴 **BLOCKED — jams in the PTFE/heatbreak region opened 2026-08-08** (see the regression
-section below; resolve before anything else). Steps 1-4 complete, floor settled at 140; Step 5
-attempted and abandoned. Pushback-distance fix (15→30) did **not** resolve the jam — mechanism is now
-understood as wisp buckling, not insufficient push distance; see
-[Tip-Cut Anatomy](https://claude.ai/code/artifact/cbab05b3-1215-4832-bc5a-977eba6ba92c). PTFE tubing
-replaced by the user as a mitigation, result pending. **Created:** 2026-08-03
+**Status:** 🟡 **Jam regression CLOSED 2026-09-14** (user: ~a dozen clean ABS swaps since 08-20, plus
+6 clean PETG swaps with good blobs). Steps 1-4 complete, floor settled at 140. **Next: Step 5**, the
+real 2-colour print. New open item: on PETG, blobs come off the tray mid-purge (2026-09-14 status log).
+Historic jam analysis kept below; see
+[Tip-Cut Anatomy](https://claude.ai/code/artifact/cbab05b3-1215-4832-bc5a-977eba6ba92c). **Created:** 2026-08-03
 **Prerequisites:** Blobifier live and owning purge; both gates loaded with contrasting filament.
 
 ## The problem, already diagnosed
@@ -621,3 +620,138 @@ minimal sliver (the 2026-08-08 goal) is only safe once residual is pinned to bet
   `pushback_length: 0`, so **only the retract half of `extruder_move_speed` is validated**. In
   production it also accelerates the pushback, increasing axial force during the very move where the
   wisp is suspected to buckle. If jams worsen, that is the first suspect.
+- **2026-09-12** — 🧪 **First swap failure seen since the 2026-08-20 changes — on PETG, not ABS.**
+  Both gates now hold Elegoo Rapid PETG at 245 °C (gate 0 yellow, gate 1 brown). PETG was only made
+  printable in `6f5e824`, and **every value in this runbook was tuned on ABS.** From `mmu.log`,
+  2026-09-11, two pre-print swaps, both from a **cold** extruder (`Extruder is not hot enough to
+  retract` → HH auto-heats to 245 → cuts right away; retract and pushback both **27mm**, not 25,
+  because `retracted_length` is 0 — so Piece B is 4–10mm across the residual band, not 6–12):
+  - **16:25 `T1→T0` (cutting gate 1) — failed.** `Failed to reach extruder entry sensor after moving
+    80.5mm`; a manual `MMU_UNLOAD` then worked; during the following 140mm purge FlowGuard logged
+    `Compression stuck after 53.10 mm motion` (handling disabled, not printing). User: **the cut end
+    was not sharp.** Print that followed (16:35–19:16) completed; the 17:27 pause and the purge-blob
+    appearance are not remembered.
+  - **19:24 `T0→T1` (cutting gate 0) — clean.** Cut, unload, load all succeeded.
+  **This does not answer the ABS jam question** (resume step 1): different material, and the symptom
+  is an incomplete cut, not a buckled wisp.
+  - ✅ **Explained — not a PETG or cut-geometry problem.** User: X homing was off at the time, so the
+    x→0 move didn't depress the cutter fully. Temporary; resolved. The F2/PETG concern raised from this
+    event is **withdrawn**. (The 16:34 FlowGuard trip during the purge is most likely fallout from that
+    bad cut; not independently explained.)
+  - **Re-test, 2026-09-12 19:30** (`MMU_EJECT`, gate 1, cold start, same 27mm retract/pushback): cut
+    and extruder exit **clean** (`Filament should be out of extruder`). The eject then failed at the
+    gate: `did not home to sensor 'mmu_gear' after moving 150mm`, `mmu_gear` still triggered. User saw
+    the **NightOwl gate-1 gear skipping steps mid-unload** — hardware, out of scope here. Prime suspect
+    is the known-marginal gate-1 latch (`TODO.md` §NightOwl internals, ~99.5% reprint). Mechanical
+    check pending; the planned hot/gate-0 cut trials were dropped as moot once the cut was explained.
+- **2026-09-12** — 🎯 **Jam-regression acceptance agreed.** User reports roughly a dozen ABS swaps
+  since the 2026-08-20 changes (`retract_length 60`, `extruder_move_speed 40`, new PTFE) with no jam
+  recurrence. **Not verifiable from logs** — the Pi keeps `klippy.log`/`mmu.log` only back to
+  2026-09-07; Moonraker history shows ~55 ABS/ASA jobs from 08-20 to 09-09 but records no swaps or
+  jams. Agreed closure test: **4 back-to-back hot PETG swaps**; if clean, the jam regression is closed.
+  ```
+  MMU_SLICER_TOOL_MAP PURGE_VOLUMES="0,218,41,0"   # map empty after restart; else ~185mm fallback, 2 blobs
+  SWAP TOOL=1        # initial load (no cut); homes if needed
+  SWAP TOOL=0        # swap 1 — cuts gate 1   } issue each one as soon as the previous
+  SWAP TOOL=1        # swap 2 — cuts gate 0   } finishes, so the hotend is still above
+  SWAP TOOL=0        # swap 3 — cuts gate 1   } min_extrude_temp (170) and the cut is the
+  SWAP TOOL=1        # swap 4 — cuts gate 0   } in-print 25mm, not the cold 27mm
+  ```
+  Use **`SWAP`, not bare `Tn`** — see `docs/decisions.md` 2026-07-25: `SWAP` parks on the nozzle rest
+  first, so heat-up ooze goes into the cup instead of draining the melt zone mid-air. A bare `Tn` from
+  a mid-air position leaves the first blob short/dry, which would look exactly like the jam signature
+  this test is looking for. (An earlier draft of this protocol said bare `Tn`; that was wrong.)
+  **Pass:** no MMU error or pause; no FlowGuard `clog` line during any purge; all four blobs full-size
+  and alike (the jam never raised an error — it showed as degraded extrusion). A 27mm retract only
+  means the hotend dropped below 170 between swaps — note it, it does not fail the test. A gate-1 skip is the separate MMU hardware
+  fault and aborts the test without failing it. Printer was shut down mid-session for NightOwl
+  internals work (gate-1 gear skipping), then resumed for this test.
+- **2026-09-12 20:37** — ⛔ **4-swap test aborted at swap 1 (MMU fault, not a jam verdict).**
+  - Initial `SWAP TOOL=0` load: its 140mm prime purge tripped FlowGuard (`Compression stuck after
+    47.63 mm motion`, handling disabled). Gate-0 RD ramped 22.3 → 29.0 steadily through the purge.
+    Same signature as 09-11 16:34 and four trips on 09-10 — every trip in the retained logs is PETG.
+    Unresolved: fragment from the 19:31 eject being purged, vs PETG not keeping up at `purge_spd: 400`.
+  - Swap 1 (`T0→T1`, hot, 25mm cut): cut and extruder exit clean, then **gate 0** failed exactly as
+    gate 1 did at 19:32 — `did not home to sensor 'mmu_gear' after moving 150mm`, bowden unload to
+    −1505.8. Gate 0 normally clears its sensor ~−1566 (09-10, 09-11), i.e. ~60mm into a 150mm budget,
+    so the filament **stopped moving** in the last ~60mm before the gear sensor. **Both gates now** —
+    rules out gate-1's latch as the sole cause; points at something common (snag at the merge/gate
+    entry, path drag). Out of this runbook's scope; overlaps the uncommitted gate-homing/bowden work.
+    ⚠️ **"Snag in the last 60mm" was wrong** — the user found the tip 200–300mm above the toolhead:
+    the gear stalled early in the *fast* retract, and the 150mm homing (slow) moved fine but couldn't
+    cover the rest. The follow-up `MMU_RECOVER` → `SWAP TOOL=1` was issued with gate 0's strand still
+    in the shared PTFE, so T1 loaded into an occupied tube and failed twice (20:59, 21:06) — a
+    procedure error, not new evidence.
+- **2026-09-13/14** — ⚠️ **MMU stall traced to the Filamentalist rewinder on PETG — reduced, not
+  fixed.** PETG grips the rewinder's o-ring nip harder than ABS/ASA, and the rewind load overloads
+  the gear steppers at speed. Tension adjustment moved the stall later, but **80 mm/s stalled again
+  2026-09-14 16:03** (gate 1). Investigation: `docs/petg-unload-stall-investigation.md`;
+  `docs/decisions.md` 2026-09-14.
+- **2026-09-14 17:20–17:41** — ✅ **MMU stall mitigated: `gear_unload_speed: 80 → 70` persisted**
+  (rewinder a further 1.5 turns looser). Six `SWAP`s, both gates, all clean: cut → unload → load,
+  no MMU error, **no FlowGuard trip on any purge**, retract 25mm (27mm on the one after a 9-min idle).
+  This also satisfies the **mechanical half of the agreed 4-swap jam-regression test**; the blob check
+  (all full-size and alike) is the user's and not yet reported. Committed `e0b4e74` (not pushed).
+  ⚠️ **Temperature confound:** both gates were raised **245 → 260 °C** at 16:34 (user: the hardened
+  steel nozzle sometimes needs it hotter), so every swap from 16:49 on ran at 260. The 17:38 purge
+  after a cold heat-up did *not* trip FlowGuard — but that is **not** a counterexample to the
+  cold-start pattern (4 of 5 cold heat-ups tripped, all at 245); it may be the fix. User agrees the
+  pattern is plausible. Next check: whether cold-start purges at 260 stay trip-free.
+- **2026-09-14** — ✅ **Jam regression CLOSED.** User confirms the six 17:20–17:41 PETG blobs were
+  full-size and consistent, completing the agreed 4-swap test; plus ~a dozen clean ABS swaps since
+  2026-08-20 (user report, not log-verifiable). **Which change fixed it is not isolated** —
+  `retract_length 66→60`, `extruder_move_speed 25→40` and the longer PTFE tube all landed together.
+  Recorded in `docs/decisions.md` 2026-09-14.
+  🆕 **New observation (PETG):** blobs come **off the tray about halfway through the purge**, every
+  swap; user has only seen it on PETG. Not yet characterised — all of today's swaps ran at 260 °C
+  (raised from 245 at 16:34), so material and temperature are confounded. Blob-shape variables are
+  in play per this runbook's own exception ("only if blobs stop depositing cleanly"), but they are
+  **shared across all materials** — any change must be re-checked on ABS (F2 principle).
+  **Characterised (user):** the blob **slides off the tray into the bucket**, and the rest of the purge
+  extrudes as strings into the air; it stays in the bucket (not dragged). **Worse at 245 °C, better at
+  260** (got further before sliding). Tray top is Blobifier's stock **aluminium strip**.
+  Leading hypothesis (untested): the blob **freezes and loses grip** on the aluminium — hotter delays
+  it, matching the user's observation; `part_cooling_fan: 0.3` blows on it throughout the purge, and
+  Blobifier's own comment says low purge fan reduces pellets "coming unstuck from tray due to material
+  shrinkage". Second lever if not: `z_raise` (nozzle outrunning the blob) — though a runnier, hotter
+  blob would predict *worse* there, not better.
+  ❌ **Fan hypothesis disproved (bench, 2026-09-14):** `BLOBIFIER_TEST PURGE_LENGTH=140` at 260 °C,
+  T0 PETG — `part_cooling_fan` 0.3 and 0 **both** slid off at ~60–70% of the purge. The bench purge
+  reproduces the in-swap symptom, so it is a valid cheap test loop. At 60–70% (84–98 mm extruded) the
+  nozzle is ~7.8–8.9 mm above the tray, and the blob is a column roughly 1.5× taller than it is wide.
+  ✅ **`z_raise` 12 → 9 (live, fan back at 0.3): slid at ~90%** (126 mm extruded). Nozzle height there
+  is **~8.3 mm** — the *same* height as the z_raise-12 slides (7.8–8.9 mm), at a larger blob volume.
+  So far (3 purges) the slide tracks **nozzle height ≈ 8 mm**, not extruded amount or aspect ratio.
+  Prediction: `z_raise: 7` (final ≈ 7.1 mm) holds to the end.
+  ✅/❌ **`z_raise: 7`: held to the end (prediction confirmed) — but deposit failed.** On the 1 mm
+  `eject_hop` the retracting tray jammed the shorter, wider blob between tray and nozzle; it stayed on
+  the nozzle through the wipe. Next (user's call): `z_raise: 8` + `eject_hop` 1 → 3. Verified the hop
+  is a **relative** move — `G91` is still active at `G1 Z{eject_hop}`; neither
+  `__BLOBIFIER_EXTRUDER_MOVE` nor `BLOBIFIER_SERVO` changes G90/G91 — so a larger value lifts, never
+  lowers. ⚠️ `z_raise: 8` ends at ~8.0 mm, right at the observed slide height.
+  ✅ **`z_raise: 8` + `eject_hop: 3` (live): worked, "but it was close".** User clarification: the blob
+  does **not** lift with the nozzle — it stays on the tray and drops into the bucket as the tray
+  retracts. So the z_raise-7 failure was the retracting tray jamming the blob against a nozzle only
+  1 mm above it, and clearance is `eject_hop`.
+  Blobifier has **no** setting for a pause between the hop and the tray retract (`dwell_time` follows
+  each servo move; `pressure_release_time` follows the nozzle's descent). User does **not** want the
+  stock macro customised for this — a dwell edit was made and reverted from git the same session.
+  Existing lever for clearance: `eject_hop`.
+  ✅ **Persisted (user's final values), committed `8493c5d`:** `z_raise 12 → 8`, `eject_hop 1.0 → 3`,
+  `pressure_release_time 1000 → 2000` (~+1 s of 100% deposit fan before the tray swings out). Parsed
+  with Klipper's configparser settings; `visualize_toolchange.py` clean. Takes effect from the file on
+  the next `FIRMWARE_RESTART`. **Open:** (1) not yet checked on **ABS** — these are shared by every
+  material, and ABS deposited fine at the old values; (2) `pressure_release_time` is also the knob the
+  post-purge ooze item (resume step 3) wanted raised — 2000 may affect that; observe on the next print.
+  Log trail on 09-13: `GEAR_UNLOAD_SPEED=50` live → 3 clean hot swaps (14:02–14:07); set back to 80
+  → gate-homing stall again (14:09); set to 70 (14:09:24). Two `Failed to reach extruder entry sensor
+  after moving 80.5mm` (13:50 swap, 18:01 cold eject) — the synced reverse-homing exit, plausibly the
+  same drag at 70% sync current; not confirmed against when tension was changed.
+  **Since 09-13 18:04, four consecutive clean swaps** (09-13 21:14, 21:16; 09-14 15:30, 15:33): cut,
+  unload, load, no MMU error. ⚠️ All ran with `GEAR_UNLOAD_SPEED=70` still live (no Klipper restart
+  since 09-13 10:19); `mmu_parameters.cfg` still says 80, which returns on the next restart.
+  ⚠️ **FlowGuard still tripped on 2 of those purges** (09-13 21:10 load purge, 09-14 15:32 swap
+  purge). Across all retained logs, purge trips follow a **heat-up from cold** (09-11 16:34, 09-12
+  20:38, 09-13 21:10, 09-14 15:32 — 4 of 5 cold starts) and **no hot swap has tripped** (0 of ~7).
+  Hypothesis, untested: HH purges the moment the nozzle hits 245 °C, before the long UHF melt zone has
+  soaked (cf. `docs/decisions.md` 2026-08-12, "PA measurements need a thermal soak").

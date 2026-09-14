@@ -1,3 +1,58 @@
+## 2026-09-14 — Blobifier `z_raise: 8`, `eject_hop: 3`, `pressure_release_time: 2000` (PETG blobs)
+**Problem:** on PETG, every blob slid off Blobifier's aluminium tray into the bucket partway through
+the purge, and the rest extruded as strings. Worse at 245 °C than 260.
+**Found by bench purges** (`BLOBIFIER_TEST PURGE_LENGTH=140`, no swap needed — reproduces the in-swap
+symptom): the slide tracks **nozzle height ≈ 8 mm** above the tray (`z_raise` 12 → slid at 60–70%,
+9 → 90%, both at ~8 mm). **Ruled out:** purge fan — 30% and 0% slid at the same point.
+**Why not lower:** `z_raise: 7` held, but the shorter, wider blob — which stays on the tray when the
+nozzle hops, it does not lift with it — jammed between the retracting tray and a nozzle only 1 mm
+above it, then rode into the wipe. `eject_hop: 3` gives that clearance; `z_raise: 8` with it deposits
+cleanly. `pressure_release_time` 2000 adds ~1 s of 100% deposit fan before the tray swings out.
+**Rejected:** adding a pause between hop and tray retract — Blobifier has no such setting, and the
+maintainer does not want the stock macro customised for it.
+**Open:** unverified on ABS (these variables are shared by every material). The previous ABS/ASA
+values (`z_raise 12`, `eject_hop 1.0`, `pressure_release_time 1000`) are kept commented out directly
+above each active line in `blobifier.cfg`, for a one-line revert.
+
+## 2026-09-14 — PTFE/heatbreak jam regression closed; the fix is not isolated
+**Decision:** close the 2026-08-08 jam regression (`docs/runbooks/blobifier-purge-tuning.md`).
+**Evidence:** ~a dozen ABS swaps since 2026-08-20 with no recurrence (user report — logs before
+2026-09-07 have rotated away), then 6 consecutive clean PETG `SWAP`s on 2026-09-14 with full-size,
+consistent blobs and no FlowGuard trip.
+**What we know:** pushback *distance* was a red herring — `15 → 30` did not stop it, and the measured
+PTFE→metal boundary (47.4 mm from the nozzle) is cleared by the nominal pushback anyway. The failure
+was a slender wisp on the cut fragment buckling in transit.
+**What we don't:** which change fixed it. `retract_length 66 → 60` (fatter fragment),
+`extruder_move_speed 25 → 40` (shorter wisp, validated on the retract only) and a longer PTFE tube
+all landed together. **If jams return, don't revert these one at a time on a hunch** — each has its
+own reasoning in `mmu_macro_vars.cfg`; re-inspect the extracted fragment first.
+
+## 2026-09-14 — MMU gear stalls on PETG trace to the Filamentalist rewind load (open)
+**Status: OPEN — tension adjustment reduced the stall, did not eliminate it.** Investigation:
+`docs/petg-unload-stall-investigation.md`.
+**Finding:** on PETG, both gates' gear steppers stalled partway through the fast bowden unload
+(`Failed to unload gate because did not home to sensor 'mmu_gear' after moving 150mm`, tip found
+200–300 mm above the toolhead). (The two T1 *load* failures on 09-12 were a procedure error — T1
+was loaded into a bowden still holding gate 0's stalled strand — not this fault.) Cause (user): the
+**Filamentalist rewinder** — PETG grips its o-ring nip harder than ABS/ASA, and the rewind load
+overloads the 0.8 A NEMA14 gear motors at speed. Adjusting the tensioner moved the stall point
+further into the move, but **80 mm/s still stalled on 2026-09-14 16:03** (gate 1, after 4 clean
+swaps at 70).
+**Why it looked like something else:** it began with the switch to PETG (09-10) with no config
+change, hit gate 1 first (the known-marginal latch), and stalled only at speed — the fast unload
+(80 mm/s ≈ 1,050 motor RPM) failed while 50 mm/s homing moved fine, which reads as a torque/speed or
+current problem. Lowering `gear_unload_speed` to 50 via `MMU_TEST_CONFIG` did avoid it (09-13), but
+only by staying under the extra drag.
+**Rule:** an MMU stall that appears with a **new filament** — check upstream drag (respooler
+tension, spool path) before touching gear current, unload speed, or latches. Re-check tension for
+each new material.
+**Decision (2026-09-14): `gear_unload_speed: 80 → 70`**, rewinder loosened a further 1.5 turns.
+At that tension gate 1 (fuller spool) still stalled at 80 (~315 mm in, buzz, filament taut) while
+70 ran 3/3 gate-1 and 2/2 gate-0 unloads clean. Chosen over a per-gate `gate_speed_override`
+(slows loads and homing too, and is per gate not per material) and over more gear current. Costs
+~2.5 s per unload. **If it stalls again, go to 60 first.** Mitigated, not root-caused: the
+rewinder-disconnect test in `docs/petg-unload-stall-investigation.md` was not run.
+
 ## 2026-09-13 — MMU (ERB V2) moves to CAN through the Leviathan's USB-to-CAN bridge
 **Decision:** the ERB V2 drops USB-C and its dedicated 24 V brick for one 4-wire Micro-Fit cable
 (24 V / GND / CAN_H / CAN_L) from the Leviathan V1.3's `CAN_BUS` port (J33). The Leviathan runs
