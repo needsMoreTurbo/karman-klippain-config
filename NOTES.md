@@ -1,9 +1,17 @@
 # Notes
-2026-07-17
-- T0 extruder is slipping because the latch opens, printing alternate latches to try to fix
-- Extruder changes have unnecessary movements, moving from the front left to the back right to the front left for some reason
-- purge from teal to black is not at all sufficient, need more purge for black
-- 
+*Notes are in chronological order from latest to oldest*
+
+2026-08-20
+- LDO ABS Dark Teal filament - Out of curiosity, I measured the distance from the cutter to the top of the melted plastic in the hotend, which was 29 mm. 
+      blade_pos                         = 69 mm
+      filament top to cutter (LDO ABS)  = 29 mm
+      residual_filament (LDO ABS)       = blade_pos - filament top to cutter (LDO ABS)
+                                        = 40 mm (this will be conservative since this is from the top of the melted plastic that has stringing)
+- The residual_filament for Polymaker ABS is 33 mm, which means that our current configuration is not robust and needs to be adjusted.
+- This might also explain the jams we've been experiencing with the LDO ABS.
+
+2026-07-25
+I have been testing blobifier and found that the initial extrusion does not stick to the arm because the filament in the nozzle has oozed out before it starts the purge, which means the initial part of the purge is nothing and yet the toolhead is going up in Z.
 
 2026-07-19
 I have made some hardware changes to the blobifier, most notably I increased the height of the blobifier tray, increased the x and z position of the shaker arm, moved the depressor from the front left to the back right and added a new nozzle rest and brush rest. The new nozzle rest and brush rest are both mounted on the gantry so the z position does not matter.
@@ -20,7 +28,6 @@ depressor position update
     1. should return to the depressor start position (x=15, y=341, z=15)
     2. then move perform any x/y moves needed before dropping z < 15 (need to clare the shaker arm)
 
-
 brush and nozzle position update:
 - note: the brush and nozzle rest are both mounted on the gantry so the z position does not matter
 - note: the brush and nozzle rest should be approached from the side going either right or left, not forward or backward
@@ -28,5 +35,7 @@ brush and nozzle position update:
 - brush left: x=53, y=ymax, z>0
 - brush right: x=88, y=ymax, z>0
 
-2026-07-25
-I have been testing blobifier and found that the initial extrusion does not stick to the arm because the filament in the nozzle has oozed out before it starts the purge, which means the initial part of the purge is nothing and yet the toolhead is going up in Z.
+2026-07-17
+- T0 extruder is slipping because the latch opens, printing alternate latches to try to fix
+- Extruder changes have unnecessary movements, moving from the front left to the back right to the front left for some reason
+- purge from teal to black is not at all sufficient, need more purge for black
