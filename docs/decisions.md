@@ -1,3 +1,17 @@
+## 2026-09-16 — Input shaper `mzv` → `ei` (X 71.0, Y 49.2) from the 2026-08-29 ShakeTune run
+**Decision:** `shaper_type_x/y: ei`, `shaper_freq_x: 71.0`, `shaper_freq_y: 49.2`,
+`damping_ratio_x: 0.051`, `damping_ratio_y: 0.049`, replacing `mzv` at 55.0/37.2 (ratios 0.055/0.071)
+from the 2026-07-04 run.
+**Evidence:** `ShakeTune_results/input_shaper/inputshaper_20260829_124644_axis_{X,Y}.png`, committed
+alongside this change, plus the belts and vibration plots from the same session.
+**Why the frequencies moved so far:** the 2026-07-04 baseline predates the toolhead work of
+2026-07-19 (taller Blobifier tray, relocated shaker arm and depressor, gantry-mounted nozzle rest and
+brush). Changing gantry and toolhead mass is exactly what moves a resonance peak, so the jump from
+55→71 X and 37→49 Y is expected, not a bad fit.
+**Status:** running these values in production and the maintainer is happy with print quality.
+**If you re-run ShakeTune:** re-run it after *any* further toolhead mass change; these numbers are
+only valid for the current gantry configuration.
+
 ## 2026-09-16 — `[output_pin caselight]` back to `scale: 1` (do not "fix" this to 100)
 **Problem:** tapping full brightness in either touchscreen UI lit the case light at ~1%. The console
 `LIGHT_ON` worked fine, so it read as a UI bug in KlipperScreen/HelixScreen.
