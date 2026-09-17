@@ -1,3 +1,17 @@
+## 2026-09-16 — Both touchscreen UIs stay registered; KlipperScreen is explicitly legacy
+**Decision:** commit the Pi's actual state — `moonraker.conf` registers update managers for **both**
+KlipperScreen and HelixScreen, and `KlipperScreen.conf` keeps its `[include mmu_klipperscreen.conf]`
+— rather than pick a winner now. Both entry points carry a `LEGACY` comment naming HelixScreen as
+the UI in use and pointing at `docs/runbooks/helixscreen-migration.md`.
+**Why not commit HelixScreen alone:** the replace-vs-coexist call is still deferred (TODO.md), and a
+repo that describes only HelixScreen would misrepresent a Pi that still has KlipperScreen installed
+and updatable. A config repo that lies about the machine is worse than one that documents a
+transition.
+**Why not leave it uncommitted:** it had been sitting dirty for weeks, hiding real changes in
+`git status` noise.
+**Removal trigger:** once HelixScreen has run a few prints unaided, delete the KlipperScreen
+`[update_manager]` block, the include line, and `mmu_klipperscreen.conf`.
+
 ## 2026-09-16 — Input shaper `mzv` → `ei` (X 71.0, Y 49.2) from the 2026-08-29 ShakeTune run
 **Decision:** `shaper_type_x/y: ei`, `shaper_freq_x: 71.0`, `shaper_freq_y: 49.2`,
 `damping_ratio_x: 0.051`, `damping_ratio_y: 0.049`, replacing `mzv` at 55.0/37.2 (ratios 0.055/0.071)
