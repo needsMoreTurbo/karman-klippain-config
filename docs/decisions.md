@@ -1,3 +1,17 @@
+## 2026-09-16 — `[output_pin caselight]` back to `scale: 1` (do not "fix" this to 100)
+**Problem:** tapping full brightness in either touchscreen UI lit the case light at ~1%. The console
+`LIGHT_ON` worked fine, so it read as a UI bug in KlipperScreen/HelixScreen.
+**Cause:** Klippain's `fcob_white.cfg` sets `scale: 100` so its `LIGHT_ON`/`LIGHT_OFF` can pass a
+0–100 value straight through to `set_pin`. KlipperScreen's Pins panel and HelixScreen's LED control
+both assume Klipper's **default `scale: 1`** and always send `VALUE` as a 0.0–1.0 fraction — so their
+"100%" arrived as `1.0`, which under `scale: 100` means 1/100 = **1%**.
+**Decision:** override to `scale: 1` (`value: 1`) in `overrides.cfg`, and override `LIGHT_ON` to
+divide its `S` parameter by 100. Every existing call site still passes 0–100 from `variables.cfg`, so
+they keep working unchanged, and both UIs are now correct.
+**Why it looks wrong:** `scale: 1` next to a `LIGHT_ON` that takes `S=0-100` looks like a mismatch.
+It is not — the division in the macro is what reconciles them. Setting `scale` back to 100 would
+re-break both touchscreens.
+
 ## 2026-09-14 — Blobifier `z_raise: 8`, `eject_hop: 3`, `pressure_release_time: 2000` (PETG blobs)
 **Problem:** on PETG, every blob slid off Blobifier's aluminium tray into the bucket partway through
 the purge, and the rest extruded as strings. Worse at 245 °C than 260.
