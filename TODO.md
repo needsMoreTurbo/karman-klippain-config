@@ -7,19 +7,24 @@ a 2-colour print (2026-07-24). Remaining work is tuning, safety loose ends, and 
 ## ▶ Next up (in order)
 1. **Confirm the OrcaSlicer wipe tower is OFF** — Process settings → Multimaterial → *Prime tower →
    Enable* (uncheck). With `force_purge_standalone: 1` live, leaving it on double-purges every swap.
-2. **Bed-mesh rear-left jog check** — the one path-safety item never confirmed by hand
+2. **Set pressure advance per filament in OrcaSlicer** — Klippain's material profiles are now off
+   (`variable_material_profiles_enabled: False`), so `[extruder] pressure_advance: 0.032` governs
+   every print. Correct for ABS/ASA, a guess for PETG/PET-GF (were 0.065). Every filament preset
+   whose notes say *"PA stays off here on purpose: Klippain applies variables.cfg"* needs updating.
+   See `docs/decisions.md` 2026-09-23.
+3. **Bed-mesh rear-left jog check** — the one path-safety item never confirmed by hand
    (jog to 20,330,z3 then 10,330,z3; shrink the mesh Y range if tight).
-3. **Tune `flowguard_max_relief`** — still at the switch-era 40; walk toward ~15 now the PSF is
+4. **Tune `flowguard_max_relief`** — still at the switch-era 40; walk toward ~15 now the PSF is
    calibrated. Do *after* a clean print so false-trip debugging isn't confounded.
-4. **Commit + push** the pending batch (workflow tooling, decisions.md, runbooks, hooks).
-5. **Commit the HelixScreen fixes** (caselight scale + decisions.md entry, the untracked
+5. **Commit + push** the pending batch (workflow tooling, decisions.md, runbooks, hooks).
+6. **Commit the HelixScreen fixes** (caselight scale + decisions.md entry, the untracked
    `printer_data/config/helixscreen/` app-config directory, the Moonraker update-manager
    registration) — runbook: `docs/runbooks/helixscreen-migration.md`.
-6. **Reboot the Pi to verify** the HelixScreen rotation and caselight fixes survive a cold boot,
+7. **Reboot the Pi to verify** the HelixScreen rotation and caselight fixes survive a cold boot,
    not just a service restart — same runbook.
-7. **Open `/hooks` once** (or restart the session) to activate the new hooks and skills — they
+8. **Open `/hooks` once** (or restart the session) to activate the new hooks and skills — they
    were added after this session started, so the settings watcher hasn't picked them up.
-8. Then the next big objective: **relocate the NightOwl** (roadmap #6) — worth a `/brief`.
+9. Then the next big objective: **relocate the NightOwl** (roadmap #6) — worth a `/brief`.
 
 _Resolved watch item: the 0.45 A extruder current is fine in practice — no skipping observed in real prints/purges. The NightOwl "skipping" was the gate-0 mirrored nightwatch latch not holding (fixed by a 99% reprint; see NightOwl internals for gate 1)._
 

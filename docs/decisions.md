@@ -1,3 +1,37 @@
+## 2026-09-23 — Klippain's per-material profiles disabled; `[extruder]` PA now governs prints
+**Problem:** every genuinely new filament hard-aborted `START_PRINT` with *"Add this new material to
+your material_parameters variable!"* — `macros/base/start_print.cfg:77` requires an exact key match
+on the slicer's `MATERIAL`. PET-GF was the latest; PETG, PETG-CF and the whole PA/PC family had each
+cost a config edit plus a `FIRMWARE_RESTART` before it.
+**What the gate was actually buying:** almost nothing on Karman. The material entry has six fields,
+and four are behind includes that are commented out in `printer.cfg` — `retract_*`
+(`firmware_rectraction.cfg`), `filter_speed` (`nevermore_filter.cfg`), `filament_sensor`
+(all three `filament_sensors/*.cfg`). Only `pressure_advance` and `additional_z_offset` applied, and
+every value except ABS/ASA's measured 0.032 was an uncalibrated copy.
+**Decision:** cherry-pick upstream Klippain commit `1cedf82` ("feat(start-print): Allow disabling
+per-material print settings", Morton Jonuschat) onto the fork as `cfd5fef`, and set
+`variable_material_profiles_enabled: False` in `variables.cfg`. `START_PRINT` now skips the lookup,
+the validation, `SET_PRESSURE_ADVANCE`, the material `SET_GCODE_OFFSET` and `START_FILTER`.
+**Why not a `rename_existing` wrapper in `overrides.cfg`:** `START_PRINT` writes 16 variables onto
+itself (`SET_GCODE_VARIABLE MACRO=START_PRINT`, lines 41-58) and those are read in 19 places across
+`start_print.cfg`, `park.cfg` and `macros/hardware_functions/mmu.cfg` — including `initial_tool`,
+`check_gates`, `tools_used` and `sync_mmu_extruder` on the MMU init path. A wrapper would have to
+replicate all of it exactly, and a subtle miss breaks toolchanges.
+**Why not just fill the table with every OrcaSlicer type:** ~35 dormant entries, and Orca allows a
+free-text `filament_type`, so it would not actually close the hole.
+**Consequence — read before touching pressure advance:** `[extruder] pressure_advance: 0.032` in
+`overrides.cfg` now governs every print unless the Orca filament preset sets PA itself. That is the
+measured ABS/ASA value; PETG and PET-GF dropped from an inherited 0.065 to 0.032. Every Orca filament
+preset whose notes say *"PA stays off here on purpose: Klippain applies variables.cfg"* is now wrong.
+The `additional_z_offset` split (0 / 0.020 PET family / 0.040 TPU) also no longer applies — none of
+it was ever measured on Karman.
+**Note on `1cedf82`:** it is **not** merged upstream (`main...1cedf82` = diverged, 7 ahead / 3 behind).
+If it lands later, a pull will either dedupe it by patch-id or need a trivial conflict resolution.
+`git am -3` fails on it with *"sha1 information is lacking or useless"* because the blobs it names are
+not in the local clone — use plain `git am`, which applies cleanly at offset -4.
+**The material table is kept, not deleted:** it is dormant while the flag is False, so flipping back
+is a one-line change.
+
 ## 2026-09-16 — Both touchscreen UIs stay registered; KlipperScreen is explicitly legacy
 **Decision:** commit the Pi's actual state — `moonraker.conf` registers update managers for **both**
 KlipperScreen and HelixScreen, and `KlipperScreen.conf` keeps its `[include mmu_klipperscreen.conf]`
