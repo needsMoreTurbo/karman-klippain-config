@@ -1,7 +1,7 @@
 # NightOwl Build — TODO
 
 Captured from the Todoist project **NightOwl Build** on 2026-07-08.
-Updated 2026-07-25 — 🎉 **MMU is functionally complete**: cutter + Blobifier + wipe all validated by
+Updated 2026-10-09 — 🎉 **MMU is functionally complete**: cutter + Blobifier + wipe all validated by
 a 2-colour print (2026-07-24). Remaining work is tuning, safety loose ends, and relocation.
 
 ## ▶ Next up (in order)
@@ -14,17 +14,16 @@ a 2-colour print (2026-07-24). Remaining work is tuning, safety loose ends, and 
    See `docs/decisions.md` 2026-09-23.
 3. **Bed-mesh rear-left jog check** — the one path-safety item never confirmed by hand
    (jog to 20,330,z3 then 10,330,z3; shrink the mesh Y range if tight).
-4. **Tune `flowguard_max_relief`** — still at the switch-era 40; walk toward ~15 now the PSF is
-   calibrated. Do *after* a clean print so false-trip debugging isn't confounded.
-5. **Commit + push** the pending batch (workflow tooling, decisions.md, runbooks, hooks).
-6. **Commit the HelixScreen fixes** (caselight scale + decisions.md entry, the untracked
-   `printer_data/config/helixscreen/` app-config directory, the Moonraker update-manager
-   registration) — runbook: `docs/runbooks/helixscreen-migration.md`.
-7. **Reboot the Pi to verify** the HelixScreen rotation and caselight fixes survive a cold boot,
-   not just a service restart — same runbook.
-8. **Open `/hooks` once** (or restart the session) to activate the new hooks and skills — they
-   were added after this session started, so the settings watcher hasn't picked them up.
-9. Then the next big objective: **relocate the NightOwl** (roadmap #6) — worth a `/brief`.
+4. **Confirm HelixScreen rotation + caselight survived a cold boot** — the Pi rebooted 2026-09-29;
+   just check the screen and a 100% caselight, then tick it off in
+   `docs/runbooks/helixscreen-migration.md`.
+5. **Finish Blobifier purge tuning** — re-check the PETG eject values (`z_raise 8`, `eject_hop 3`,
+   `pressure_release_time 2000`) on **ABS**, then the real 2-colour acceptance print (Step 5).
+   Also open there: post-purge ooze, and FlowGuard trips on purges right after a cold heat-up
+   (hypothesis: melt zone not soaked). — runbook: `docs/runbooks/blobifier-purge-tuning.md`
+6. **Triage `docs/issues.md`** (2026-08-08 complaints: slow cold start, swap time, ooze while the bed
+   heats, 8-min bed soak, missed jam, shake not firing) into tasks below or `/brief`s.
+7. Then the next big objective: **relocate the NightOwl** (roadmap #7) — worth a `/brief`.
 
 _Resolved watch item: the 0.45 A extruder current is fine in practice — no skipping observed in real prints/purges. The NightOwl "skipping" was the gate-0 mirrored nightwatch latch not holding (fixed by a 99% reprint; see NightOwl internals for gate 1)._
 
@@ -52,11 +51,13 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 - [x] ~~install depressor front-left; contact 17,36 → compressed 0.5,36~~ **superseded** — relocated back-left 2026-07-17, geometry above
 - [x] enable cutter — `form_tip_macro: _MMU_CUT_TIP` set 2026-07-14
 - [x] first flat cut verified (at `residual 35`); residual refined to 25 by hand calc
-- [x] confirmation cut at `residual 25` ✓ (2026-07-15)
+- [x] confirmation cut at `residual 25` ✓ (2026-07-15) — residual later corrected to **33** (measured
+  melt pool; `docs/decisions.md` 2026-08-08)
 - [x] real `T0`↔`T1` swaps with the cutter ✓; 1-color print with start/end cuts ✓ *(pre-rework)*
 - [x] cut re-validated at the back-left location ✓ (exercised by the post-rework blobifier swaps)
   ⚠️ Cut-test workflow reminder: from loaded, `MMU_EJECT` alone (cut + unload + gate release). Never `MMU_TEST_FORM_TIP` (strands tip in PTFE + hard-stamps UNLOADED → next `MMU_EJECT` errors). Desync fix: `MMU_RECOVER`.
-- [ ] **Walk `retract_length` up** 55 → 58 → 62 while cuts stay flat (smaller sliver = less purge)
+- [ ] **`retract_length`** — now **60** (went 55 → 66 → 60 on 2026-08-20 to give the cut fragment
+  margin; `dfc13fd`). Only revisit if cut fragments become a problem again.
 - [ ] Watch purge/flushing amounts with the cutter (cut fragment adds to what must purge)
 
 ## NightOwl exterior wiring
@@ -135,21 +136,27 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 - [x] Bowden length calibration (`MMU_CALIBRATE_BOWDEN`) — **preliminary** long run; re-do when relocated (see NightOwl internals)
 - [x] **Toolhead calibration** — done clean+dirty; auto-cal unreliable (0.45 A extruder slip) so measured manually. Values in `mmu_parameters.cfg` 238–240 + `residual 5`.
 - [x] **Test tool changes** (`T0` / `T1`) — both gates swap correctly with tip forming.
-- [x] **FlowGuard** — active via the **PSF** proportional sync-feedback sensor (`flowguard_enabled: 1`); encoder path (`flowguard_encoder_mode`) stays 0 (encoderless). `flowguard_max_relief` still 40 → walk toward ~15 (Next up #3).
+- [x] **FlowGuard** — active via the **PSF** proportional sync-feedback sensor (`flowguard_enabled: 1`); encoder path (`flowguard_encoder_mode`) stays 0 (encoderless). `flowguard_max_relief` 40 → **8** (2026-08-20, `3c0b0e7` — 40 missed a real clog).
 - [x] **Switch purging to HH-owned via BLOBIFIER** — *supersedes the old "Option B / `_MMU_PURGE` @ 0,358" plan*: Blobifier positions itself, so `park_toolchange` stays `-999,-999` (see `docs/decisions.md`).
   - [x] `purge_macro: BLOBIFIER` + `force_purge_standalone: 1` in `mmu_parameters.cfg`
   - [x] `variable_user_post_form_tip_extension: "BLOBIFIER_PARK"` + `restore_xy_pos: "next"`; staged `0,358` park comment retired
   - [ ] OrcaSlicer wipe tower **OFF** ← *confirm; required now that `force_purge_standalone: 1`, or you double-purge*
   - [x] Purge matrix fed via `MMU_START_SETUP ... PURGE_VOLUMES=!purge_volumes!` (verified in the machine start g-code)
-- [x] **Filament cutting (Filamatrix)** — ENABLED; geometry now **back-left**: pin `15,341` → compressed `0,341` (X-axis cut) at **z15**, `blade_pos 69`, `retract_length 55` (walk toward 62), `residual 25`, `form_tip_macro: _MMU_CUT_TIP`. Flat cut + real swaps verified.
+- [x] **Filament cutting (Filamatrix)** — ENABLED; geometry now **back-left**: pin `15,341` → compressed `0,341` (X-axis cut) at **z15**, `blade_pos 69`, `retract_length 60`, `residual 33`, `form_tip_macro: _MMU_CUT_TIP`. Flat cut + real swaps verified.
 - [x] **Nozzle wipe** — post-toolchange wipe runs on the **new gantry brush** (x53–88, `brush_top: None`) via `BLOBIFIER_CLEAN`; tested.
 - [x] **Blobifier configuration** — servo, bucket switch, tray, shake all configured and tested.
 - [ ] Filament change tuning (retraction amounts, blob tuning, purge volumes under real prints)
+- [ ] **PETG gear stall on fast unload** — mitigated (`gear_unload_speed 80 → 70`, rewinder loosened),
+  not root-caused. Next: the rewinder-disconnect test; if it stalls again, go to 60 first. Re-check
+  rewinder tension per new material. — `docs/petg-unload-stall-investigation.md`,
+  `docs/decisions.md` 2026-09-14
+- _Evaluated, no change: Happy Hare vs AFC — `docs/mmu_software_hh_vs_afc.md` (2026-09-13)._
 - [ ] **Collision avoidance** — *no Klipper obstacle model exists; enforced by you:*
   - ⚠️ **FRONT-LEFT KEEP-OUT, PERMANENT (~x<10, y<17, all Z):** the Filamatrix **cutter arm strikes the front-left XY idler** — toolhead geometry, applies to every move.
   - ⚠️ **BACK-LEFT ZONE (x<~20, y>~335, below z15):** blobifier structures + relocated depressor. Enter only via the managed macros; manual jogs at low Z stay out.
   - ⚠️ **y_max FEATURE ROW** (tray x~2–17, shaker x4, rest x45, brush x53–88, all gantry/frame at y_max): approach in **+Y only through the clear lanes 15<x<40 or x>95**, then slide in X. `_KARMAN_PARK_MOVE` + retargeted CLEAN_NOZZLE handle this for parks/wipes.
   - [x] QGL (max y 275) + Y-homing (x≈345) verified clear from config
+  - [x] Beacon mesh scan U-turns capped (`mesh_overscan: 5`) so they stay out of the front-left keep-out (`296d24b`)
   - [ ] **Bed-mesh rear-left jog check** — jog nozzle to (20, 330, z3) then (10, 330, z3) and eyeball clearance to the depressor mount + blobifier base (mesh probing rows can reach nozzle y≈332 at low Z)
   - [ ] **Slicer bed exclusion** — notch the bed polygon: front-left idler corner + back-left blobifier/depressor zone
   - [ ] **Vet remaining macro positions** (prime line, Beacon contact, purge/clean during START_PRINT) against the new zones
@@ -185,21 +192,12 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
   doesn't, and the law-driven expansion to a full matrix if it does. Includes the refit helper
   Appendix B flags as missing, and validation on a real second filament.
   — runbook: `docs/runbooks/pa-calibration-sop.md`
-- [ ] **Calibrate PA for the placeholder `material_parameters` entries** — added 2026-09-10 so
-  START_PRINT stops rejecting Orca's type strings (a `MATERIAL=PETG` print aborted with *"Add this
-  new material to your material_parameters variable!"*). Klippain's START_PRINT applies these over
-  `[extruder]`, and only ABS is measured (ASA reuses its 0.032). Placeholders in `variables.cfg`:
-
-  | Keys | PA now | Source |
-  |---|---|---|
-  | `PETG`, `PETG-CF` | 0.065 | Klippain stock `PET` copy — likely high on the UHF (ABS went 0.048 → 0.032) |
-  | `TPU` | 0.050 | Klippain stock |
-  | `PA` `PA-CF` `PA-GF` `PA6` `PA6-CF` `PAHT` `PC` `PC-CF` | 0.032 | ABS's measured value, as a starting point |
-
-  **PETG first** — it's the one in active use, and it doubles as the "real second filament" the SOP
-  task above needs. Only `pressure_advance` and `additional_z_offset` are live on Karman (firmware
-  retraction, filter and filament-sensor includes are commented out in `printer.cfg`).
-  — runbook: `docs/runbooks/pa-calibration-sop.md`
+- [ ] **Calibrate PA for non-ABS filaments, and record it in the Orca filament presets** — since
+  2026-09-23 Klippain's `material_parameters` table is **dormant**
+  (`variable_material_profiles_enabled: False`, `docs/decisions.md` 2026-09-23), so its placeholder
+  PA values no longer apply; `[extruder] pressure_advance: 0.032` (measured ABS) governs unless the
+  Orca preset sets PA. **PETG first** — it's the one in active use, and it doubles as the "real
+  second filament" the SOP task above needs. — runbook: `docs/runbooks/pa-calibration-sop.md`
 
 ## HelixScreen UI migration
 - [x] **Fix screen rotation** (was rendering upside down) — `display.rotate` in
@@ -211,17 +209,19 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
   Fixed in `overrides.cfg` (`scale: 1` + a `LIGHT_ON`/`LIGHT_OFF` override doing the `/100`
   itself); validated via `render_macro.py`, not yet on hardware. — runbook:
   `docs/runbooks/helixscreen-migration.md`
-- [ ] **Commit the HelixScreen-related repo changes** — caselight fix + decisions.md entry,
-  `moonraker.conf` update-manager registration, and the untracked
-  `printer_data/config/helixscreen/` app-config directory (env/themes/printer_database.d;
-  `crash_history.json` → `.gitignore`). — runbook: `docs/runbooks/helixscreen-migration.md`
-- [ ] **Verify rotation + caselight survive a real Pi reboot**, not just a service restart. —
-  runbook: `docs/runbooks/helixscreen-migration.md`
+- [x] **Commit the HelixScreen-related repo changes** — done 2026-09-16 (`dfd55e9`, `0b87175`,
+  `9a24dc1`); `crash_history.json` is gitignored.
+- [ ] **Verify rotation + caselight survive a real Pi reboot** — the Pi rebooted 2026-09-29; just
+  needs the visual check. — runbook: `docs/runbooks/helixscreen-migration.md`
+- [ ] **Stop `helixscreen/settings.json` showing as modified** — HelixScreen rewrites its heat-up
+  timing history into it, so it is permanently dirty. Gitignore it (or split prefs from runtime
+  data) — decide which.
 - [ ] **Dial in the rest of `settings.json`** (theme, sleep/dim timers, touch calibration,
   gcode/bed-mesh render mode, per-printer macro bindings) — `settings.json.template`'s inline
   comments are the reference. — runbook: `docs/runbooks/helixscreen-migration.md`
 - [ ] **Decide HelixScreen vs. KlipperScreen long-term** (replace or run both) — deferred until
-  HelixScreen has been used through a few real prints. — runbook:
+  HelixScreen has been used through a few real prints. Interim: both registered, KlipperScreen
+  marked legacy (`docs/decisions.md` 2026-09-16); as of 2026-10-09 its service is inactive. — runbook:
   `docs/runbooks/helixscreen-migration.md`
 - [ ] *(optional)* **Install a second HelixScreen instance on a laptop** (Moonraker client only,
   `192.168.1.240:7125`) for faster iteration on printer/macro settings — doesn't cover
@@ -248,47 +248,18 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
   `G28 Z METHOD=CONTACT`, so the hooks have to call `BEACON_AUTO_CALIBRATE` at a fuzzed point
   instead. Radius is bounded by `bed_mesh zero_reference_position` (also 175,175), **not** by
   clearance: measured worst mesh deviation over the chosen ±10 mm patch is 0.018 mm.
-- [ ] **Purge lengths are sized for a standard hotend, not the UHF** — runbook:
-  `docs/runbooks/blobifier-purge-tuning.md` (Klipper-side fix via `purge_length_minimum`; acceptance
-  is a clean colour change *on the part*). Do this AFTER the START_PRINT
-  verification prints (changing it mid-verification would confound the result). Measured 2026-08-02
-  on a `SWAP TOOL=0` (teal → black) that visibly failed to complete the colour change:
-
-  ```
-  BLOBIFIER: Swapped T1 > T0
-  BLOBIFIER: Purging 36mm of filament
-  ```
-
-  Blobifier's formula (`mmu/addons/blobifier.cfg:378-391`):
-  `purge_len = (pv[from][to] × purge_length_modifier) / 2.405 + extruder_filament_remaining + retracted_length + purge_length_addition`
-
-  | Term | Value | Note |
-  |---|---|---|
-  | slicer `pv[1][0]` (T1→T0) | 41 mm³ | `PURGE_VOLUMES=0,218,41,0`; T0→T1 is 218 |
-  | × `purge_length_modifier` 0.6 | 24.6 mm³ | |
-  | ÷ 2.405 mm² | **10.2 mm** | ← the only part that actually flushes colour |
-  | + residual (~24) + retract (2) | ≈ 36 mm | displacement only — pushes old colour to the tip |
-
-  **The melt zone alone holds 25 mm ≈ 60 mm³**, so the swap delivered under half a melt-zone volume
-  of fresh material. The slicer's 41 mm³ is the standard "going to a dark colour needs less"
-  heuristic, sized for a ~10 mm melt zone — same class of error as `toolhead_residual_filament`
-  (see `docs/decisions.md` 2026-07-17).
-
-  Corollary: **`purge_length_minimum: 30` is effectively zero flush** (~4 mm after displacement).
-  Knobs, in rough order of preference: raise the slicer flushing volume for →dark swaps; raise
-  `purge_length_minimum` toward ~60–70; `purge_length_addition` (blobifier.cfg's own guidance:
-  *"INCREASE when dark→light swaps are good but light→dark aren't"* — this is that case);
-  `purge_length_modifier` 0.6 → higher. Supersedes the older "Tune purge volume" line under
-  Toolchange optimization.
-
-  For manual swaps meanwhile, bypass the matrix entirely: `BLOBIFIER_TEST PURGE_LENGTH=100`,
-  repeated until the blob runs clean, **before** starting a print.
+- [ ] **Purge lengths for the UHF melt zone** — runbook: `docs/runbooks/blobifier-purge-tuning.md`.
+  Steps 1-4 done: Blobifier floor raised to **140 mm** (`purge_length_minimum`, `docs/decisions.md`
+  2026-08-08 — makes the slicer matrix vestigial), residual corrected 25 → 33, jam regression closed
+  2026-09-14, PETG blob slide fixed with `z_raise 8` / `eject_hop 3` / `pressure_release_time 2000`.
+  **Open:** those eject values unchecked on ABS · real 2-colour acceptance print (Step 5) ·
+  post-purge ooze · FlowGuard trips on purges right after a cold heat-up (melt-zone soak hypothesis).
+  The original 2026-08-02 under-purge diagnosis lives in the runbook (its numbers are superseded).
 
 ## Toolchange optimization (later)
 - [ ] Implement the fast sequence: retract → cutter → cut → fast-retract while moving to blobifier → blobifier purge → shake bin → wipe → resume
-- [ ] ~~Tune purge volume~~ — superseded by the purge-length task under **Miscellaneous**, which has
-  the measured numbers from the 2026-08-02 teal→black swap failure
-- [ ] Tune **PSF** sync-feedback behaviour under real prints (incl. `flowguard_max_relief`)
+- [ ] ~~Tune purge volume~~ — superseded by the purge-length task under **Miscellaneous**
+- [ ] Tune **PSF** sync-feedback behaviour under real prints (`flowguard_max_relief` now 8 — watch for false trips)
 
 ## Spoolman integration (later)
 - [ ] Install / enable Spoolman + Moonraker integration
@@ -360,7 +331,7 @@ decisions lives in `docs/decisions.md`; per-objective execution records are in
 - Verified nothing else depended on the discrete compression switch: `extruder_homing_endstop: extruder` (Filamatrix switch) and `gate_homing_endstop: mmu_gear` are unaffected, and the tension test / post-load tension adjust both branch on `has_proportional`.
 - **Calibrated** (`MMU_CALIBRATE_PSENSOR`, gate 0 loaded): `max_compression: 0.9965`, `max_tension: 0.0109`, `neutral_point: 0.5037`. Sensor reads **HIGH under compression**, LOW under tension, spanning nearly the full ADC range — so the initial placeholder values were inverted. Buffer travel measured **14.5 mm**, `sync_feedback_buffer_range`/`_maxrange` set to match.
 - **Calibration gotcha (cost several bad runs)**: `MMU_CALIBRATE_PSENSOR` only works if the buffer starts near **mid-travel**. Started from a rail (raw ≈ 0.996) it exits after ~2 of its 2 mm steps on ADC noise and reports garbage — max_tension came back as 0.996 / 0.985 / 0.690 / 0.760 / 0.770 on five consecutive runs. `_seek_limit` in `mmu.py` ends the sweep the instant one sample moves against the ramp, and `SD_THRESHOLD = 0.02` (mmu.py:2833) is **declared but never referenced** — the intended jitter deadband was never wired up. Fix: `MMU_TEST_MOVE MOVE=-2 MOTOR=gear` until `MMU_SENSORS DETAIL=1` shows raw ≈ 0.27, then calibrate. Step budget is *not* the constraint (28 mm available at maxrange 14.5), so raising `MOVE=` doesn't help despite what HH's failure message suggests.
-- **Still pending**: `flowguard_max_relief` at the switch-era 40, to be walked toward ~15.
+- **Then pending**: `flowguard_max_relief` at the switch-era 40 — since set to 8 (2026-08-20).
 
 ### 2026-07-17 — back-left rework: depressor moved, gantry brush/rest, blobifier geometry final
 - **Hardware rework**: depressor moved front-left → **back-left** (cut line y=341, x 15→0, **cut plane z=15** to clear the shaker arm); blobifier tray raised (top **z=0.3**, purge x=9); shaker arm engagement now **x=4, z=4**; NEW **gantry-mounted brush (x53–88)** and **nozzle rest (x=45, RTV cup, handles hot nozzle)** — both work at any Z; old brush + old purge bucket removed.

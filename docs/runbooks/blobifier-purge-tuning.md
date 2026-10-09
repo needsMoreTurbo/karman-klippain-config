@@ -4,7 +4,9 @@
 light→dark swaps without making dark→light wasteful. **Klipper-side only.**
 **Status:** 🟡 **Jam regression CLOSED 2026-09-14** (user: ~a dozen clean ABS swaps since 08-20, plus
 6 clean PETG swaps with good blobs). Steps 1-4 complete, floor settled at 140. **Next: Step 5**, the
-real 2-colour print. New open item: on PETG, blobs come off the tray mid-purge (2026-09-14 status log).
+real 2-colour print. PETG blob-slide fixed (`z_raise 8`, `eject_hop 3`, `pressure_release_time 2000`,
+`8493c5d`) — **not yet re-checked on ABS**. Also open: post-purge ooze; FlowGuard trips on purges
+after a cold heat-up (2026-09-14 status log).
 Historic jam analysis kept below; see
 [Tip-Cut Anatomy](https://claude.ai/code/artifact/cbab05b3-1215-4832-bc5a-977eba6ba92c). **Created:** 2026-08-03
 **Prerequisites:** Blobifier live and owning purge; both gates loaded with contrasting filament.

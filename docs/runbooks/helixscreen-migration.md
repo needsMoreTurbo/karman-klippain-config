@@ -3,7 +3,8 @@
 **Objective:** Finish migrating Karman's touchscreen UI to HelixScreen — dial in its settings,
 get the app's config properly committed to this repo, verify the fixes made so far survive a
 real reboot, and decide what happens to KlipperScreen.
-**Status:** In progress. Two bugs found and fixed; repo commits and settings tuning still open.
+**Status:** In progress. Bugs fixed and committed (Steps 1–3 done 2026-09-16); open: cold-boot
+verification (Step 4), settings tuning (Step 5), KlipperScreen decision.
 **Date opened:** 2026-08-22
 **Prerequisites:** Pi reachable at `ernst@192.168.1.240`; HelixScreen already installed and
 running as the `helixscreen` systemd service (installed 2026-08-20, `~/helixscreen/`); Karman is
@@ -184,12 +185,12 @@ turns out to need coordinated changes (e.g. the pending `mmu_klipperscreen.conf`
 
 ## Verification
 
-- [ ] `docs/decisions.md` has the caselight-scale entry (Step 1).
-- [ ] `git log` on the Pi shows the caselight-fix and app-config commits; `git status -s` (via
+- [x] `docs/decisions.md` has the caselight-scale entry (Step 1) — 2026-09-16.
+- [x] `git log` on the Pi shows the caselight-fix and app-config commits; `git status -s` (via
       SSH) shows nothing from the "Out of scope" list touched.
 - [ ] Rotation and caselight both confirmed correct **after a cold reboot**, not just a service
       restart (Step 4).
-- [ ] `printer_data/config/helixscreen/` is tracked: `ssh ernst@192.168.1.240 "cd ~/printer_data/config && git ls-files helixscreen/"` lists `helixscreen.env`, `themes/nord.json`,
+- [x] `printer_data/config/helixscreen/` is tracked: `ssh ernst@192.168.1.240 "cd ~/printer_data/config && git ls-files helixscreen/"` lists `helixscreen.env`, `themes/nord.json`,
       `printer_database.d/README.md`; `crash_history.json` does not appear.
 - [ ] Maintainer sign-off that `settings.json` reflects their actual preferences (subjective —
       no command proves this, just ask).
@@ -217,3 +218,10 @@ caselight fix are unrelated enough to bisect independently):
   so far"); bed-target display glitch investigated and closed as non-reproducing. Nothing
   committed yet — Steps 1–3 are the immediate next actions. Reboot verification (Step 4) and
   settings tuning (Step 5) not started.
+- **2026-10-09** — (status audit, no work done) Steps 1–3 landed as `dfd55e9` (caselight scale),
+  `0b87175` (Moonraker registration, KlipperScreen marked legacy — `docs/decisions.md` 2026-09-16)
+  and `9a24dc1` (app config tracked, also `settings.json` + `tool_spools.json`); `crash_history.json`
+  gitignored. The Pi cold-booted 2026-09-29 — Step 4 only needs the maintainer's visual check.
+  New wrinkle: tracking `settings.json` means it is permanently dirty (HelixScreen rewrites its
+  heat-up timing history into it); gitignore or split — open in `TODO.md`. KlipperScreen service is
+  currently inactive.
