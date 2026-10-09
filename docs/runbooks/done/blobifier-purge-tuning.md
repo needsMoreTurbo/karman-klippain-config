@@ -2,13 +2,9 @@
 
 **Objective:** colour changes complete cleanly on the part. Fix the measured under-purge on
 light→dark swaps without making dark→light wasteful. **Klipper-side only.**
-**Status:** 🟡 **Jam regression CLOSED 2026-09-14** (user: ~a dozen clean ABS swaps since 08-20, plus
-6 clean PETG swaps with good blobs). Steps 1-4 complete, floor settled at 140. **Next: Step 5**, the
-real 2-colour print. PETG blob-slide fixed (`z_raise 8`, `eject_hop 3`, `pressure_release_time 2000`,
-`8493c5d`) — **not yet re-checked on ABS**. Also open: post-purge ooze; FlowGuard trips on purges
-after a cold heat-up (2026-09-14 status log).
-Historic jam analysis kept below; see
-[Tip-Cut Anatomy](https://claude.ai/code/artifact/cbab05b3-1215-4832-bc5a-977eba6ba92c). **Created:** 2026-08-03
+**Status:** ✅ **Done 2026-10-09** (maintainer): ABS re-check of the PETG eject values, the real
+2-colour acceptance print (Step 5), post-purge ooze and the cold-start FlowGuard trips all closed out.
+**Created:** 2026-08-03
 **Prerequisites:** Blobifier live and owning purge; both gates loaded with contrasting filament.
 
 ## The problem, already diagnosed
@@ -757,3 +753,5 @@ minimal sliver (the 2026-08-08 goal) is only safe once residual is pinned to bet
   20:38, 09-13 21:10, 09-14 15:32 — 4 of 5 cold starts) and **no hot swap has tripped** (0 of ~7).
   Hypothesis, untested: HH purges the moment the nozzle hits 245 °C, before the long UHF melt zone has
   soaked (cf. `docs/decisions.md` 2026-08-12, "PA measurements need a thermal soak").
+- **2026-10-09** — ✅ Closed by the maintainer: eject values OK on ABS, 2-colour acceptance print
+  done, ooze and cold-start FlowGuard trips resolved. Runbook archived to `done/`.

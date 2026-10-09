@@ -3,8 +3,8 @@
 **Objective:** Finish migrating Karman's touchscreen UI to HelixScreen — dial in its settings,
 get the app's config properly committed to this repo, verify the fixes made so far survive a
 real reboot, and decide what happens to KlipperScreen.
-**Status:** In progress. Bugs fixed and committed (Steps 1–3 done 2026-09-16); open: cold-boot
-verification (Step 4), settings tuning (Step 5), KlipperScreen decision.
+**Status:** In progress. Bugs fixed and committed (Steps 1–3 done 2026-09-16); cold boot verified
+2026-10-09 (Step 4); open: settings tuning (Step 5), KlipperScreen decision.
 **Date opened:** 2026-08-22
 **Prerequisites:** Pi reachable at `ernst@192.168.1.240`; HelixScreen already installed and
 running as the `helixscreen` systemd service (installed 2026-08-20, `~/helixscreen/`); Karman is
@@ -188,7 +188,7 @@ turns out to need coordinated changes (e.g. the pending `mmu_klipperscreen.conf`
 - [x] `docs/decisions.md` has the caselight-scale entry (Step 1) — 2026-09-16.
 - [x] `git log` on the Pi shows the caselight-fix and app-config commits; `git status -s` (via
       SSH) shows nothing from the "Out of scope" list touched.
-- [ ] Rotation and caselight both confirmed correct **after a cold reboot**, not just a service
+- [x] Rotation and caselight both confirmed correct **after a cold reboot**, not just a service
       restart (Step 4).
 - [x] `printer_data/config/helixscreen/` is tracked: `ssh ernst@192.168.1.240 "cd ~/printer_data/config && git ls-files helixscreen/"` lists `helixscreen.env`, `themes/nord.json`,
       `printer_database.d/README.md`; `crash_history.json` does not appear.
@@ -225,3 +225,4 @@ caselight fix are unrelated enough to bisect independently):
   New wrinkle: tracking `settings.json` means it is permanently dirty (HelixScreen rewrites its
   heat-up timing history into it); gitignore or split — open in `TODO.md`. KlipperScreen service is
   currently inactive.
+- **2026-10-09** — Maintainer confirmed rotation + caselight correct after the 2026-09-29 cold boot. Step 4 ✅.
