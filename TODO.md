@@ -5,8 +5,7 @@ Updated 2026-10-09 — 🎉 **MMU is functionally complete**: cutter + Blobifier
 a 2-colour print (2026-07-24). Remaining work is tuning, safety loose ends, and relocation.
 
 ## ▶ Next up (in order)
-1. **Triage `docs/issues.md`** (2026-08-08 complaints: slow cold start, swap time, ooze while the bed
-   heats, 8-min bed soak, missed jam, shake not firing) into tasks below or `/brief`s.
+1. **`/brief` the cold-start START_PRINT speed-up** — see *Miscellaneous → Cut cold-start time*.
 2. **NightOwl power + CAN** — the move and bowden re-cal are done; remaining is the Micro-Fit run
    from the Leviathan (24 V + CAN, retires the dedicated brick and the ERB's USB link) —
    `docs/mmu_can_bus.md`. See NightOwl exterior wiring.
@@ -14,7 +13,7 @@ a 2-colour print (2026-07-24). Remaining work is tuning, safety loose ends, and 
 _Closed 2026-10-09 (maintainer): Orca prime tower confirmed OFF · PA set in the Orca filament
 presets · rear-left mesh jog clear · HelixScreen rotation + caselight survived the 09-29 cold boot ·
 Blobifier purge tuning finished · NightOwl relocated, PTFE re-plumbed, bowden re-calibrated
-(1445.9 mm, both gates)._
+(1445.9 mm, both gates) · `docs/issues.md` triaged (see its header)._
 
 _Resolved watch item: the 0.45 A extruder current is fine in practice — no skipping observed in real prints/purges. The NightOwl "skipping" was the gate-0 mirrored nightwatch latch not holding (fixed by a 99% reprint; see NightOwl internals for gate 1)._
 
@@ -33,6 +32,8 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 8. **Optimize the toolchange sequence:**
    - retract → move to cutter → cut → fast retract while fast-moving to blobifier → load + execute blobifier → shake bin → wipe nozzle → return to print.
    - tune purge amount (accounting for the pre-cut retraction).
+   - **Goal: shorter swaps** — the maintainer finds swap time "just too long" (`docs/issues.md`
+     2026-08-08). Worth a `/brief` when this comes up.
 9. **Spoolman integration.**
 
 ## Filamatrix
@@ -226,6 +227,18 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
   — a stale `nozzle_expansion_applied_offset` cancelled the new offset exactly, and the console
   message reported the *target* rather than the delta actually issued, which hid it. Both fixed
   in `thermal_expansion.cfg`; see `docs/decisions.md` 2026-08-02.
+- [ ] **Cut cold-start time in START_PRINT** (maintainer, `docs/issues.md` 2026-08-08: "just too
+  long"). Traced 2026-10-09 — on a multi-tool print the sequence fights itself:
+  1. `_KLIPPAIN_MMU_INIT` runs `MMU_UNLOAD` **before** any `startprint_actions` (always, when
+     `TOOLS_USED` has more than one tool — `docs/decisions.md` 2026-08-02), heating the hotend.
+  2. `bed_soak` parks at **Z50** mid-bed (`start_print.cfg:302`) for `print_default_soak: 8` min —
+     with the hotend still hot and oozing. This is also the "Blobifier → Z50 → back down" bob.
+  3. `extruder_preheating` (contact temp guard) does `M109 S150` (`safe_extruder_temp`) — a
+     fan-less wait for the nozzle to **cool** before Beacon contact.
+  Ideas from the note: drop/shorten the soak (Beacon meshes the bed anyway); turn the hotend off
+  or down right after the unload; cool with the part fan, or wait only to `probe_contact_max_temp`
+  (180) and then set 150 without holding. Respect the 2026-08-02 decisions (bucket safe-Z,
+  chamber soak, purge removal) — `docs/start_print_walkthrough.md`. Needs a `/brief`.
 - [ ] **END_PRINT `retract_filament` is now a complete no-op** — with `mmu_unload_on_end_print:
   False` the MMU branch is gated off and the plain-retract `elif` is unreachable
   (`klippain_mmu_enabled` is True). Decide whether END_PRINT should retract at all now that

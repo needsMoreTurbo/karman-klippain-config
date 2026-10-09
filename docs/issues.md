@@ -1,3 +1,14 @@
+> **Triaged 2026-10-09** — nothing below is open here any more; tracked items live in `TODO.md`.
+> - Cold-start heat/cool dance, Z50 bob, ooze while the bed heats, 8-min soak → TODO *Cut
+>   cold-start time in START_PRINT* (one START_PRINT sequencing problem).
+> - Swap time → TODO roadmap #8 (toolchange sequence).
+> - Blobs squashed by the tray, post-blob ooze → fixed (`eject_hop 3` / `z_raise 8`; purge runbook
+>   closed 2026-10-09).
+> - Jam missed by FlowGuard → fixed by `flowguard_max_relief` 40 → 8 (2026-08-20).
+> - Shake not happening → by design: first shake after ~20 blobs (`max_blobs 400`,
+>   `bucket_shake_frequency 0.95`); not seen failing since.
+> - "Printer is actively printing" at start → not seen since; reopen with the log line if it returns.
+
 2026-08-08 - 18:00
 - during multi-color print start, it first heats up to unload the hotend, then it has to cool down to a safe temperature for beacon. is done by a 150C set and hold, and takes a long time. there is no fan assistance durint this, also, couldn't we hold and wait to the max safe temp for beacon contact, and then just set to 150 without a hold, then do contact auto calibrate
 - there are severl times where we do a blobifier operation, then go up to z=50, then back down to blobifier height for no reason whatsoever
