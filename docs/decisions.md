@@ -91,7 +91,7 @@ values (`z_raise 12`, `eject_hop 1.0`, `pressure_release_time 1000`) are kept co
 above each active line in `blobifier.cfg`, for a one-line revert.
 
 ## 2026-09-14 — PTFE/heatbreak jam regression closed; the fix is not isolated
-**Decision:** close the 2026-08-08 jam regression (`docs/runbooks/blobifier-purge-tuning.md`).
+**Decision:** close the 2026-08-08 jam regression (`docs/runbooks/done/blobifier-purge-tuning.md`).
 **Evidence:** ~a dozen ABS swaps since 2026-08-20 with no recurrence (user report — logs before
 2026-09-07 have rotated away), then 6 consecutive clean PETG `SWAP`s on 2026-09-14 with full-size,
 consistent blobs and no FlowGuard trip.

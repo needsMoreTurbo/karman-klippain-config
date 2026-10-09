@@ -79,7 +79,7 @@ Two frameworks both think they own the toolhead. Facts that are expensive to red
 - **In-print guards must use `printer.print_stats.state`, not `printer.mmu.print_state`.** During
   START_PRINT, HH's state is still `initialized` while Klipper already reads `printing`; guarding on HH
   state alone shuts the hotend off mid-START_PRINT.
-- **Never use `MMU_TEST_FORM_TIP` on this machine** — it strands the tip in the 2 m bowden and stamps
+- **Never use `MMU_TEST_FORM_TIP` on this machine** — it strands the tip in the ~1.45 m bowden and stamps
   state UNLOADED, so the next `MMU_EJECT` errors. Test cuts with `T0`/`T1`/`MMU_EJECT`; fix desync with
   `MMU_RECOVER` (never hand-crank with `MMU_TEST_MOVE`).
 
