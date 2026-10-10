@@ -1,5 +1,7 @@
 # MMU software — Happy Hare vs AFC for Karman's NightOwl
 
+**2026-10-10:** AFC re-checked (unchanged upstream); decided → **v4**, before the CAN wiring — `docs/decisions.md` 2026-10-10, runbooks `docs/runbooks/hh-v4-*.md`.
+
 **Status (2026-09-13): evaluated, no software change made.** Desk research only: source read at
 the commits listed under **Evidence**, plus read-only inspection of the Pi. Nothing was installed,
 switched or tested on hardware.

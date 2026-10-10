@@ -1,3 +1,20 @@
+## 2026-10-10 — Karman moves to Happy Hare v4, not AFC; migration runs before the CAN wiring
+**Context:** the maintainer runs AFC on the ECC and finds it easier and less frustrating — e.g. AFC
+fills the swap temperature from the material (ABS → 260), while HH kept reverting a typed 260 to 245
+(root cause found the same day: HH's `MMU_GATE_MAP` defaults a missing `TEMP` to
+`default_extruder_temp`; Mainsail sends one field per call — fixed Karman-side, see
+`docs/runbooks/hh-gate-temp-by-material.md`). AFC was re-checked against upstream on 2026-10-10:
+unchanged since the 2026-09-13 evaluation (`docs/mmu_software_hh_vs_afc.md`) — still no upstream
+Blobifier, and Klippain's START_PRINT MMU path is HH-only.
+**Decision:** migrate v3 → **v4** (3 runbooks, `docs/runbooks/hh-v4-*.md`). v4 keeps Klippain's
+MMU integration, bundles Blobifier with every feature Karman uses, keeps the hook names Karman's
+macros rely on, and its `menuconfig` installer targets the v3 config burden that makes AFC feel
+easier. **Timing (maintainer's call, against the evaluation's suggestion):** before the CAN /
+Micro-Fit wiring. Accepted cost: if the MMU misbehaves after CAN, a v4 regression can no longer be
+excluded by elimination — it has to be tested.
+**Rejected:** AFC (Blobifier port, START_PRINT rewrite, tooling rewrite, every HH gotcha relearned);
+staying on v3 indefinitely (maintenance-only upstream).
+
 ## 2026-09-23 — Klippain's per-material profiles disabled; `[extruder]` PA now governs prints
 **Problem:** every genuinely new filament hard-aborted `START_PRINT` with *"Add this new material to
 your material_parameters variable!"* — `macros/base/start_print.cfg:77` requires an exact key match

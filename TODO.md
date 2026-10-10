@@ -10,7 +10,11 @@ a 2-colour print (2026-07-24). Remaining work is tuning, safety loose ends, and 
 2. **Cut cold-start time in START_PRINT** (after #1 — same action list) — soak 8 → 3, nozzle to 150
    right after the start unload, fan-assisted cooldown. — runbook:
    `docs/runbooks/start-print-cold-start-speedup.md`
-3. **NightOwl power + CAN** — the move and bowden re-cal are done; remaining is the Micro-Fit run
+3. **Gate temperature follows the material** (and stops reverting to 245 °C on a colour edit in
+   Mainsail) — small, works on v3 now. — runbook: `docs/runbooks/hh-gate-temp-by-material.md`
+4. **Happy Hare v4 migration** (3 runbooks, in order — see *Happy Hare v4 migration* below) — before
+   the CAN wiring (maintainer, 2026-10-10).
+5. **NightOwl power + CAN** — the move and bowden re-cal are done; remaining is the Micro-Fit run
    from the Leviathan (24 V + CAN, retires the dedicated brick and the ERB's USB link) —
    `docs/mmu_can_bus.md`. See NightOwl exterior wiring.
 
@@ -32,13 +36,15 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 6. **HelixScreen UI migration** — in progress alongside the MMU work, not blocking it: rotation
    and caselight bugs fixed, repo commits and settings tuning still open, KlipperScreen
    replace-vs-coexist decision deferred. — runbook: `docs/runbooks/helixscreen-migration.md`
-7. **Finalize NightOwl position** — ~~relocate closer to the filament-load side~~ ✓ · ~~re-run bowden cal~~ ✓ (2026-10-09) · **still open:** wire to printer 24 V + CAN via microfit from the Leviathan's CAN port (decided 2026-09-13 — `docs/mmu_can_bus.md`).  ← *next big one*
-8. **Optimize the toolchange sequence:**
+7. **Migrate Happy Hare v3 → v4** — chosen over AFC (`docs/decisions.md` 2026-10-10); done *before*
+   the CAN wiring. Three runbooks, see *Happy Hare v4 migration*.  ← *next big one*
+8. **Finalize NightOwl position** — ~~relocate closer to the filament-load side~~ ✓ · ~~re-run bowden cal~~ ✓ (2026-10-09) · **still open:** wire to printer 24 V + CAN via microfit from the Leviathan's CAN port (decided 2026-09-13 — `docs/mmu_can_bus.md`).
+9. **Optimize the toolchange sequence:**
    - retract → move to cutter → cut → fast retract while fast-moving to blobifier → load + execute blobifier → shake bin → wipe nozzle → return to print.
    - tune purge amount (accounting for the pre-cut retraction).
    - **Goal: shorter swaps** — the maintainer finds swap time "just too long" (`docs/issues.md`
      2026-08-08). Worth a `/brief` when this comes up.
-9. **Spoolman integration.**
+10. **Spoolman integration.**
 
 ## Filamatrix
 ### CURRENT geometry (relocated BACK-LEFT 2026-07-17): contact **15, 341** → compressed **0, 341**, cut plane **z=15** (clears the shaker arm; enforced by `min_toolchange_z: 15`). Validated by real swaps post-rework.
@@ -142,6 +148,11 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 - [x] **Nozzle wipe** — post-toolchange wipe runs on the **new gantry brush** (x53–88, `brush_top: None`) via `BLOBIFIER_CLEAN`; tested.
 - [x] **Blobifier configuration** — servo, bucket switch, tray, shake all configured and tested.
 - [ ] Filament change tuning (retraction amounts, blob tuning, purge volumes under real prints)
+- [ ] **Gate temperature from the material; stop the revert to 245 °C** — Mainsail's HH panel sends
+  one field per `MMU_GATE_MAP` call, and HH (v3 *and* v4) defaults a missing `TEMP` to
+  `default_extruder_temp`, so a colour edit undoes a typed 260. Fix: `overrides.cfg` wrapper that
+  keeps the gate's temp and fills it from an AFC-style material table (copied from the ECC). —
+  runbook: `docs/runbooks/hh-gate-temp-by-material.md`
 - [ ] **PETG gear stall on fast unload** — mitigated (`gear_unload_speed 80 → 70`, rewinder loosened),
   not root-caused. Next: the rewinder-disconnect test; if it stalls again, go to 60 first. Re-check
   rewinder tension per new material. — `docs/petg-unload-stall-investigation.md`,
@@ -158,6 +169,19 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
   - [ ] **Vet remaining macro positions** (prime line, Beacon contact, purge/clean during START_PRINT) against the new zones
 - [x] 🎯 **First multi-material print** — DONE 2026-07-14 (tip forming, Option A slicer purge; 7 toolchanges clean)
 - [x] 🎯 **Multi-material print WITH cutter + Blobifier** — DONE 2026-07-24. Validates the full chain: cut at z15 → unload → load → Blobifier purge → gantry-brush wipe → resume. Runbook: `docs/runbooks/done/blobifier-bringup.md`
+
+## Happy Hare v4 migration
+_Decided 2026-10-10 (`docs/decisions.md`): v4, not AFC; before the CAN wiring. v3→v4 is a fresh
+`menuconfig` setup — nothing migrates — so every Karman value is carried by hand from a ledger._
+- [ ] **Part 1 — prep:** pin HH to the `v3` branch (closes the "Update button pulls v4" hazard),
+  back up, and build `docs/hh_v4_carryover.md` (every carried value → its v4 home, menuconfig
+  answers, compatibility checks vs v4 source). — runbook: `docs/runbooks/hh-v4-1-prep.md`
+- [ ] **Part 2 — install + core MMU:** v4 install, include/pin reconciliation with Klippain,
+  sensors, PSF, per-gate bowden, load/eject, swaps with cut (purge off). — runbook:
+  `docs/runbooks/hh-v4-2-install-core.md`
+- [ ] **Part 3 — Blobifier + acceptance:** v4's bundled Blobifier with Karman's values, purge
+  ownership, START_PRINT/END_PRINT, 2-colour ABS acceptance print, CLAUDE.md + docs updated. —
+  runbook: `docs/runbooks/hh-v4-3-blobifier-print.md`
 
 ## Slicer configuration (Happy Hare)
 _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.md` (the authoritative record)._
