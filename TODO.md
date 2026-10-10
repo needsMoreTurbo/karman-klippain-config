@@ -5,7 +5,8 @@ Updated 2026-10-09 — 🎉 **MMU is functionally complete**: cutter + Blobifier
 a 2-colour print (2026-07-24). Remaining work is tuning, safety loose ends, and relocation.
 
 ## ▶ Next up (in order)
-1. **`/brief` the cold-start START_PRINT speed-up** — see *Miscellaneous → Cut cold-start time*.
+1. **Cut cold-start time in START_PRINT** — soak 8 → 3, nozzle to 150 right after the start unload,
+   fan-assisted cooldown. — runbook: `docs/runbooks/start-print-cold-start-speedup.md`
 2. **NightOwl power + CAN** — the move and bowden re-cal are done; remaining is the Micro-Fit run
    from the Leviathan (24 V + CAN, retires the dedicated brick and the ERB's USB link) —
    `docs/mmu_can_bus.md`. See NightOwl exterior wiring.
@@ -238,7 +239,10 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
   Ideas from the note: drop/shorten the soak (Beacon meshes the bed anyway); turn the hotend off
   or down right after the unload; cool with the part fan, or wait only to `probe_contact_max_temp`
   (180) and then set 150 without holding. Respect the 2026-08-02 decisions (bucket safe-Z,
-  chamber soak, purge removal) — `docs/start_print_walkthrough.md`. Needs a `/brief`.
+  chamber soak, purge removal) — `docs/start_print_walkthrough.md`.
+  _Decided 2026-10-09:_ soak **3** min; nozzle target 150 (no wait) right after the unload; the
+  calibrate touch may happen at ≤ 180 °C (fan-assisted), the Z-defining touch is settled to 150 —
+  runbook: `docs/runbooks/start-print-cold-start-speedup.md`
 - [ ] **END_PRINT `retract_filament` is now a complete no-op** — with `mmu_unload_on_end_print:
   False` the MMU branch is gated off and the plain-retract `elif` is unreachable
   (`klippain_mmu_enabled` is True). Decide whether END_PRINT should retract at all now that
