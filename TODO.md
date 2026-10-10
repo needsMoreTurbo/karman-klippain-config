@@ -5,9 +5,12 @@ Updated 2026-10-09 — 🎉 **MMU is functionally complete**: cutter + Blobifier
 a 2-colour print (2026-07-24). Remaining work is tuning, safety loose ends, and relocation.
 
 ## ▶ Next up (in order)
-1. **Cut cold-start time in START_PRINT** — soak 8 → 3, nozzle to 150 right after the start unload,
-   fan-assisted cooldown. — runbook: `docs/runbooks/start-print-cold-start-speedup.md`
-2. **NightOwl power + CAN** — the move and bowden re-cal are done; remaining is the Micro-Fit run
+1. **PET ooze survives the START_PRINT wipe** — hot wipe at 230 °C on the rest after PET prints,
+   end-of-print wipe + cooldown fan. — runbook: `docs/runbooks/nozzle-ooze-pet-hot-wipe.md`
+2. **Cut cold-start time in START_PRINT** (after #1 — same action list) — soak 8 → 3, nozzle to 150
+   right after the start unload, fan-assisted cooldown. — runbook:
+   `docs/runbooks/start-print-cold-start-speedup.md`
+3. **NightOwl power + CAN** — the move and bowden re-cal are done; remaining is the Micro-Fit run
    from the Leviathan (24 V + CAN, retires the dedicated brick and the ERB's USB link) —
    `docs/mmu_can_bus.md`. See NightOwl exterior wiring.
 
@@ -228,6 +231,12 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
   — a stale `nozzle_expansion_applied_offset` cancelled the new offset exactly, and the console
   message reported the *target* rather than the delta actually issued, which hid it. Both fixed
   in `thermal_expansion.cfg`; see `docs/decisions.md` 2026-08-02.
+- [ ] **PET ooze survives the START_PRINT nozzle wipe** — after PET prints the nozzle oozes while
+  cooling on the rest; at the next start the hardened ooze is still attached and 150 °C is too cold
+  for the brush to remove it. Decided 2026-10-10: START_PRINT hot-wipes at **230 °C on the rest**
+  only when the last nozzle material (saved by END_PRINT) contains `PET`; END_PRINT wipes hot at the
+  current Z (`BLOBIFIER_CLEAN`) and fan-cools; **no END_PRINT retract** (cut-margin coupling).
+  Run before the cold-start task below. — runbook: `docs/runbooks/nozzle-ooze-pet-hot-wipe.md`
 - [ ] **Cut cold-start time in START_PRINT** (maintainer, `docs/issues.md` 2026-08-08: "just too
   long"). Traced 2026-10-09 — on a multi-tool print the sequence fights itself:
   1. `_KLIPPAIN_MMU_INIT` runs `MMU_UNLOAD` **before** any `startprint_actions` (always, when
@@ -247,6 +256,8 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
   False` the MMU branch is gated off and the plain-retract `elif` is unreachable
   (`klippain_mmu_enabled` is True). Decide whether END_PRINT should retract at all now that
   filament stays loaded in the UHF melt zone through cooldown. Same kind of audit as START_PRINT.
+  _Being decided by the PET-ooze runbook (2026-10-10): no END_PRINT retract — it would silently
+  shift the next cut; close this when that runbook lands._
 - [ ] **Reconsider "MMU profiles must send CHAMBER=0"** (`docs/decisions.md` 2026-07-14) — that rule
   was a workaround for `chamber_temp_tolerance: 0.0`, which is now 2.0. Keep setpoints ≤ ~55 °C.
 - [ ] **Fuzz the Beacon contact point** so the two nozzle touches per print stop wearing one spot on

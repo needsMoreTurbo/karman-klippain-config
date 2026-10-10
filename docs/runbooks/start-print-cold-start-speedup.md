@@ -6,6 +6,10 @@ in repo-root files: shorter bed soak, hotend dropped to the contact-safe tempera
 the start-of-print MMU unload, and a cooldown that no longer blocks on a fan-less wait to 150 °C.
 **Status:** 🟡 not started
 **Created:** 2026-10-09
+**⚠️ Run order:** execute **after** `docs/runbooks/nozzle-ooze-pet-hot-wipe.md` (maintainer, 2026-10-10).
+That runbook adds `karman_hot_wipe_heat` / `karman_hot_wipe_cool` around the first `clean` and
+already defines `_START_PRINT_ACTION_KARMAN_CONTACT_Z_TEMP`; its Step 9 amends Steps 3a/3b here.
+If that amendment has not happened yet, stop and do it first.
 **Prerequisites:** printer idle (not mid-print) for every `FIRMWARE_RESTART`; both MMU gates
 loaded; one 2-colour ABS model and one single-colour model ready to slice (any small parts with
 a decent first-layer area — the maintainer picks).
@@ -322,3 +326,4 @@ ssh ernst@192.168.1.240 'cd ~/printer_data/config && git status -s'
 
 - **2026-10-09** — Runbook written (architecture session). Design pre-resolved with the
   maintainer; nothing executed yet.
+- **2026-10-10** — Now runs after the PET-ooze runbook (see header); Steps 3a/3b get amended by its Step 9.
