@@ -5,18 +5,18 @@ Updated 2026-10-09 — 🎉 **MMU is functionally complete**: cutter + Blobifier
 a 2-colour print (2026-07-24). Remaining work is tuning, safety loose ends, and relocation.
 
 ## ▶ Next up (in order)
-1. **PET ooze survives the START_PRINT wipe** — hot wipe at 230 °C on the rest after PET prints,
+1. **NightOwl on CAN** — one Micro-Fit cable (24 V + CAN) from the Leviathan, during the current
+   NightOwl maintenance, on HH v3 (maintainer, 2026-10-11). Retires the brick and USB-C. — runbook:
+   `docs/runbooks/nightowl-can-wiring.md`
+2. **PET ooze survives the START_PRINT wipe** — hot wipe at 230 °C on the rest after PET prints,
    end-of-print wipe + cooldown fan. — runbook: `docs/runbooks/nozzle-ooze-pet-hot-wipe.md`
-2. **Cut cold-start time in START_PRINT** (after #1 — same action list) — soak 8 → 3, nozzle to 150
+3. **Cut cold-start time in START_PRINT** (after #2 — same action list) — soak 8 → 3, nozzle to 150
    right after the start unload, fan-assisted cooldown. — runbook:
    `docs/runbooks/start-print-cold-start-speedup.md`
-3. **Gate temperature follows the material** (and stops reverting to 245 °C on a colour edit in
+4. **Gate temperature follows the material** (and stops reverting to 245 °C on a colour edit in
    Mainsail) — small, works on v3 now. — runbook: `docs/runbooks/hh-gate-temp-by-material.md`
-4. **Happy Hare v4 migration** (3 runbooks, in order — see *Happy Hare v4 migration* below) — before
-   the CAN wiring (maintainer, 2026-10-10).
-5. **NightOwl power + CAN** — the move and bowden re-cal are done; remaining is the Micro-Fit run
-   from the Leviathan (24 V + CAN, retires the dedicated brick and the ERB's USB link) —
-   `docs/mmu_can_bus.md`. See NightOwl exterior wiring.
+5. **Happy Hare v4 migration** (3 runbooks, in order — see *Happy Hare v4 migration* below) — after
+   the CAN conversion (order changed 2026-10-11).
 
 _Closed 2026-10-09 (maintainer): Orca prime tower confirmed OFF · PA set in the Orca filament
 presets · rear-left mesh jog clear · HelixScreen rotation + caselight survived the 09-29 cold boot ·
@@ -36,9 +36,9 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 6. **HelixScreen UI migration** — in progress alongside the MMU work, not blocking it: rotation
    and caselight bugs fixed, repo commits and settings tuning still open, KlipperScreen
    replace-vs-coexist decision deferred. — runbook: `docs/runbooks/helixscreen-migration.md`
-7. **Migrate Happy Hare v3 → v4** — chosen over AFC (`docs/decisions.md` 2026-10-10); done *before*
-   the CAN wiring. Three runbooks, see *Happy Hare v4 migration*.  ← *next big one*
-8. **Finalize NightOwl position** — ~~relocate closer to the filament-load side~~ ✓ · ~~re-run bowden cal~~ ✓ (2026-10-09) · **still open:** wire to printer 24 V + CAN via microfit from the Leviathan's CAN port (decided 2026-09-13 — `docs/mmu_can_bus.md`).
+7. **Finalize NightOwl position** — ~~relocate closer to the filament-load side~~ ✓ · ~~re-run bowden cal~~ ✓ (2026-10-09) · **still open:** wire to printer 24 V + CAN via microfit from the Leviathan's CAN port (decided 2026-09-13 — `docs/mmu_can_bus.md`). — runbook: `docs/runbooks/nightowl-can-wiring.md`  ← *now*
+8. **Migrate Happy Hare v3 → v4** — chosen over AFC (`docs/decisions.md` 2026-10-10); runs *after*
+   the CAN conversion (order changed 2026-10-11). Three runbooks, see *Happy Hare v4 migration*.
 9. **Optimize the toolchange sequence:**
    - retract → move to cutter → cut → fast retract while fast-moving to blobifier → load + execute blobifier → shake bin → wipe nozzle → return to print.
    - tune purge amount (accounting for the pre-cut retraction).
@@ -64,10 +64,11 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 
 ## NightOwl exterior wiring
 - [x] short term, setup dedicated 24v power brick (variable voltage unit)
-- [ ] print adapters for microfit and keystone adapters (hex inserts)
-- [x] order usb port / cable for hex insert
-- [ ] cut and wire barrel jack connector
-- [ ] wire microfit wire internally to the printer
+- [ ] print + fit the **Micro-Fit keystone adapter** (panel pass-through for the CAN cable) — part of
+  the CAN runbook. _Hex-insert adapters and the barrel-jack connector dropped 2026-10-15 — the single
+  Micro-Fit replaces the brick and USB-C._
+- [ ] wire microfit wire internally to the printer — **24 V + CAN from J33; 18 AWG power (J33 sits
+  behind the Leviathan's 10 A main fuse)** — runbook: `docs/runbooks/nightowl-can-wiring.md`
   _Why it matters beyond tidiness (found 2026-09-13):_ on the dedicated brick the MMU MCU stays
   powered when the printer is switched off, so it keeps Klipper's shutdown state across power
   cycles — every cold start after a USB dropout fails with `Can not update MCU 'mmu' config as it
@@ -171,7 +172,8 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 - [x] 🎯 **Multi-material print WITH cutter + Blobifier** — DONE 2026-07-24. Validates the full chain: cut at z15 → unload → load → Blobifier purge → gantry-brush wipe → resume. Runbook: `docs/runbooks/done/blobifier-bringup.md`
 
 ## Happy Hare v4 migration
-_Decided 2026-10-10 (`docs/decisions.md`): v4, not AFC; before the CAN wiring. v3→v4 is a fresh
+_Decided 2026-10-10 (`docs/decisions.md`): v4, not AFC; runs after the CAN conversion (order changed
+2026-10-11). v3→v4 is a fresh
 `menuconfig` setup — nothing migrates — so every Karman value is carried by hand from a ledger._
 - [ ] **Part 1 — prep:** pin HH to the `v3` branch (closes the "Update button pulls v4" hazard),
   back up, and build `docs/hh_v4_carryover.md` (every carried value → its v4 home, menuconfig

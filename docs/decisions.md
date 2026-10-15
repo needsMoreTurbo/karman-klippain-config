@@ -1,3 +1,15 @@
+## 2026-10-11 — Order change: NightOwl CAN conversion before the HH v4 migration
+**Decision (maintainer):** do the CAN / Micro-Fit conversion now, on HH v3, during the current
+NightOwl maintenance; the v4 series follows. Reverses the timing in the 2026-10-10 entry below and
+restores the 2026-09-13 evaluation's order (hardware first on known-good software, so a later fault
+isn't confounded with a v4 regression). Runbook: `docs/runbooks/nightowl-can-wiring.md`.
+**Also settled (2026-10-15, while briefing it):** the board is an **ERB V2.0** (the "Rabbit Burrow"
+comment in `mcu.cfg` is a naming quirk, not a different board). **J33 is fused**: Leviathan V1.3
+KiCad puts J33 pin 1 on the global `+24V` net, which is the output of the 10 A main fuse F3 (after
+reverse-polarity FET Q2 and TVS D21) — so no extra fuse, but the cable's 24 V/GND conductors are
+**18 AWG** to match the 10 A fuse. Hex-insert adapters and the barrel jack are dropped; the Micro-Fit
+keystone pass-through stays.
+
 ## 2026-10-10 — Karman moves to Happy Hare v4, not AFC; migration runs before the CAN wiring
 **Context:** the maintainer runs AFC on the ECC and finds it easier and less frustrating — e.g. AFC
 fills the swap temperature from the material (ABS → 260), while HH kept reverting a typed 260 to 245

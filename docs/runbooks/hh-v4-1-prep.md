@@ -21,9 +21,11 @@ No v4 code is installed in this runbook.
   START_PRINT MMU path is HH-only, and the tooling is written against HH. It recommended v4.
   The maintainer runs AFC on another printer and finds it easier. v4's `menuconfig` installer
   targets exactly the v3 configuration burden.
-  **Timing:** the maintainer chose to migrate **before** the CAN / Micro-Fit wiring, against
-  the evaluation's suggestion. Accepted consequence: a later hardware fault must be
-  distinguished from a v4 regression by testing, not by elimination.
+  **Timing:** runs **after** the CAN conversion (`docs/runbooks/nightowl-can-wiring.md`). The
+  maintainer first chose v4-before-CAN (2026-10-10), then reversed it on 2026-10-11 so the CAN
+  work could happen during NightOwl maintenance. That matches the evaluation's advice: hardware
+  first, on known-good software. **Prerequisite:** the CAN runbook is done, and `[mcu mmu]` in
+  `mcu.cfg` uses `canbus_uuid:`.
 - **The upgrade is a fresh setup.** No v3 settings migrate. `./install.sh -b main` →
   "Upgrade to v4" renames `~/printer_data/config/mmu` to `mmu.V3` and runs `menuconfig` from
   scratch. Rollback is documented upstream (see part 2). Upgrade guide:

@@ -69,7 +69,10 @@
 - **Never edit Happy Hare's Python.** Never edit Klippain framework files (`macros/`, `config/`).
 - **Never `MMU_TEST_FORM_TIP`** (CLAUDE.md) unless the ledger's compatibility check proved v4
   changed that behaviour. Test cuts with `MMU_EJECT` / swaps; fix desync with `MMU_RECOVER`.
-- **CAN wiring** — separate objective (TODO roadmap #7).
+- **CAN** — already done before this series (`docs/runbooks/nightowl-can-wiring.md`). `[mcu mmu]`
+  uses `canbus_uuid:` in `mcu.cfg`, and stays there. If v4's menuconfig asks for the MMU's
+  connection, give the ERB's CAN UUID (from `mcu.cfg`), but keep `mcu.cfg` as the live definition
+  (Step 3).
 - **Keep-out zones** (CLAUDE.md): front-left x<10/y<17 any Z; back-left x<~20/y>~335 below z15;
   y_max feature row only via the lanes 15<x<40 or x>95. `tools/visualize_toolchange.py` must be
   clean before any swap.
