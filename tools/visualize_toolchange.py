@@ -469,6 +469,13 @@ def scen_complete_park(sim: Sim):
     sim.run_macro("_KARMAN_PARK_MOVE", {"X": park[0], "Y": park[1], "F": 12000})
     sim.mark("parked on nozzle rest (print complete)")
 
+    # END_PRINT's new end wipe (overrides.cfg karman_end_cooldown_wipe): PARK is the first
+    # END_PRINT step, then BLOBIFIER_CLEAN at the current Z and PARK E=0 back to the rest.
+    sim.phase = "3 end wipe (BLOBIFIER_CLEAN) + back on rest"
+    sim.run_macro("BLOBIFIER_CLEAN")
+    sim.run_macro("PARK", {"E": 0})
+    sim.mark("end-of-print hot wipe done, parked on nozzle rest")
+
 
 def scen_start_print(sim: Sim):
     """The motion-bearing START_PRINT actions, in `startprint_actions` order.
@@ -493,6 +500,12 @@ def scen_start_print(sim: Sim):
     sim.phase = "1 bed_soak (park center-front)"
     sim.dispatch(f"G0 X{int(max_x) / 2} Y{int(max_y) / 3} Z50 F21000", "_MODULE_HEATSOAK_BED")
     sim.mark("bed soak → extruder_preheating → chamber_soak (no further motion)")
+
+    # karman_hot_wipe_heat (PET/PC/PA/ABS/ASA) parks on the rest before its M109. The other
+    # karman_* actions (hot_wipe_cool, contact_z_temp) only change temperatures.
+    sim.phase = "1b karman_hot_wipe_heat (PARK E=0 onto the rest)"
+    sim.run_macro("PARK", {"E": 0})
+    sim.mark("heat to wipe temp on the rest (230/200/180 by material)")
 
     sim.phase = "2 clean #1 (wipe before contact probing)"
     sim.run_macro("_MODULE_CLEAN")
