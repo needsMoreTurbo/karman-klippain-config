@@ -259,9 +259,10 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
   in `thermal_expansion.cfg`; see `docs/decisions.md` 2026-08-02.
 - [ ] **PET ooze survives the START_PRINT nozzle wipe** — after PET prints the nozzle oozes while
   cooling on the rest; at the next start the hardened ooze is still attached and 150 °C is too cold
-  for the brush to remove it. Decided 2026-10-10: START_PRINT hot-wipes at **230 °C on the rest**
-  only when the last nozzle material (saved by END_PRINT) contains `PET`; END_PRINT wipes hot at the
-  current Z (`BLOBIFIER_CLEAN`) and fan-cools; **no END_PRINT retract** (cut-margin coupling).
+  for the brush to remove it. Decided 2026-10-10, amended 2026-10-15/16: START_PRINT hot-wipes on the rest at
+  a per-material temp (PET 230, PC/PA 200, ABS/ASA 180) keyed on the last nozzle material (saved by END_PRINT);
+  END_PRINT cools to that temp, wipes (`BLOBIFIER_CLEAN`), keeps fan-cooling; **no END_PRINT retract** (cut-margin
+  coupling). Applied and running; waiting on the ooze verdict (see the runbook status log).
   Run before the cold-start task below. — runbook: `docs/runbooks/nozzle-ooze-pet-hot-wipe.md`
 - [ ] **Cut cold-start time in START_PRINT** (maintainer, `docs/issues.md` 2026-08-08: "just too
   long"). Traced 2026-10-09 — on a multi-tool print the sequence fights itself:
@@ -276,7 +277,7 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
   (180) and then set 150 without holding. Respect the 2026-08-02 decisions (bucket safe-Z,
   chamber soak, purge removal) — `docs/start_print_walkthrough.md`.
   _Decided 2026-10-09:_ soak **3** min; nozzle target 150 (no wait) right after the unload; the
-  calibrate touch may happen at ≤ 180 °C (fan-assisted), the Z-defining touch is settled to 150 —
+  calibrate touch may happen at ≤ 180 °C (fan-assisted), the Z-defining touch runs at 150 via the guard exit —
   runbook: `docs/runbooks/start-print-cold-start-speedup.md`
 - [ ] **END_PRINT `retract_filament` is now a complete no-op** — with `mmu_unload_on_end_print:
   False` the MMU branch is gated off and the plain-retract `elif` is unreachable

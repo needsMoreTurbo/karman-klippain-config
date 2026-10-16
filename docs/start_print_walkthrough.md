@@ -121,6 +121,17 @@ corner low by 30 mm, the nozzle can sit up to 17 mm below commanded Z over the
 plate; Klippain's bucket move is a bare diagonal that does not route through
 `_KARMAN_PARK_MOVE`, so nothing else enforces a floor.
 
+### 20a. Hot wipe around the first `clean` (`karman_hot_wipe_heat` / `karman_hot_wipe_cool`)
+Added 2026-10-15 (`docs/runbooks/nozzle-ooze-pet-hot-wipe.md`). The action list is now
+`... chamber_soak, karman_hot_wipe_heat, clean, karman_hot_wipe_cool, contact_auto_calibrate ...`.
+`karman_hot_wipe_heat` reads `karman_last_nozzle_material` (saved by END_PRINT, and again by this
+action for the new print so a cancelled print still leaves a correct value), takes its first word
+and picks a wipe temperature: **PET/PCTG 230, PC/PA 200, ABS/ASA 180**, anything else none.
+If there is one it parks on the nozzle rest (`PARK E=0`) and heats to that temperature, so the
+`clean` brushes soft ooze. `karman_hot_wipe_cool` then fan-cools to <=152 C at the brush station
+(blocking). Cooling is done here because the contact guard's exit is a blocking fan-off
+`M109 S<saved target>`, which would be slow. 150 C is too cold for the brush to remove hardened PET.
+
 ### 21. `contact_auto_calibrate` — Beacon model calibration
 Wrapped in the contact guard (`_PROBE_ENTER_CONTACT_GUARD`): target is 150 ≤ 180 so
 no cooldown is needed; the guard just records state. Hook executes
@@ -234,6 +245,16 @@ drag the nozzle back through the line, `M400`.
 33. Final `_MMU_PRINT_START` branch skipped once more (`print_start_detection=1`).
 34. Console: `Start printing !`, then `G92 E0` — extruder position zeroed, control
     returns to the sliced gcode.
+
+### END_PRINT: cool, wipe, keep cooling (`karman_end_cooldown_wipe`)
+Replaces the old "wipe at print temperature" step. The material comes from the HH gate map when
+filament is loaded, else from `START_PRINT.material`; it is saved for the next start. The part fan
+goes to 100 %. If the material has a wipe temperature the nozzle first cools to it, then
+`BLOBIFIER_CLEAN` + `PARK E=0`, then it keeps cooling. A wipe at 285 C left the nozzle oozing again
+afterwards. Materials with no wipe temperature (PLA, TPU...) are only recorded and fan-cooled.
+`_KARMAN_END_COOLDOWN_FAN_LOOP` turns the fan off below 120 C, or at once if a new print heats
+the nozzle (`extruder.target > 0`; `print_stats.state` stays `printing` during END_PRINT, so it
+cannot be used).
 
 ---
 

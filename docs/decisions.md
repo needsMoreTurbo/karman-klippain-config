@@ -1,3 +1,21 @@
+## 2026-10-16 — PET ooze: material-based hot wipe at START_PRINT, cool-then-wipe at END_PRINT
+**Problem:** after PET prints the ooze hardens on the nozzle; 150 C is too cold for the brush.
+**Decided (maintainer):** (1) START_PRINT heats on the nozzle rest to a per-material wipe temp
+(PET/PCTG 230, PC/PA 200, ABS/ASA 180, from HDT for softening and average print temp for melt; PEKK/PEI
+ignored), wipes, then fan-cools to 150 before contact (`karman_hot_wipe_heat/_cool`). The material is
+saved to `karman_last_nozzle_material` at END_PRINT, and again at START so cancelled prints stay
+right. (2) END_PRINT no longer wipes at print temperature: the first hardware test showed wiping at
+~285 C leaves the nozzle oozing afterwards. It now cools to the wipe temp, wipes, keeps cooling
+(`karman_end_cooldown_wipe`). (3) The cooldown fan loop keys on `extruder.target`, not
+`print_stats.state` (stays `printing` through END_PRINT). (4) Cooling lives in
+`karman_hot_wipe_cool` because the contact guard exit is a blocking fan-off `M109`.
+(5) `karman_contact_z_temp` was removed: `contact_z_home` has its own guard, and fewer deviations
+from Klippain is preferred. **No END_PRINT filament retract**: it would shift the cut margin
+(`retract_length` 60). Note `PARK` defaults to `E=2`, so END_PRINT still does a 2 mm retract HH
+does not see.
+**Status:** mechanics verified on hardware (ABS end: cooled to 180, wiped, fan stopped itself).
+Whether the ooze is actually gone is not yet confirmed.
+
 ## 2026-10-11 — Order change: NightOwl CAN conversion before the HH v4 migration
 **Decision (maintainer):** do the CAN / Micro-Fit conversion now, on HH v3, during the current
 NightOwl maintenance; the v4 series follows. Reverses the timing in the 2026-10-10 entry below and

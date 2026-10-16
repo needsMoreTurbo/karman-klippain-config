@@ -7,8 +7,9 @@ the start-of-print MMU unload, and a cooldown that no longer blocks on a fan-les
 **Status:** 🟡 not started
 **Created:** 2026-10-09
 **⚠️ Run order:** execute **after** `docs/runbooks/nozzle-ooze-pet-hot-wipe.md` (maintainer, 2026-10-10).
-That runbook adds `karman_hot_wipe_heat` / `karman_hot_wipe_cool` around the first `clean` and
-already defines `_START_PRINT_ACTION_KARMAN_CONTACT_Z_TEMP`; its Step 9 amends Steps 3a/3b here.
+That runbook adds `karman_hot_wipe_heat` / `karman_hot_wipe_cool` around the first `clean`; its
+Step 9 amends Steps 3a/3b here. (`karman_contact_z_temp` was dropped on 2026-10-15; this runbook
+no longer adds it either.)
 If that amendment has not happened yet, stop and do it first.
 **Prerequisites:** printer idle (not mid-print) for every `FIRMWARE_RESTART`; both MMU gates
 loaded; one 2-colour ABS model and one single-colour model ready to slice (any small parts with
@@ -69,7 +70,8 @@ objective.
 - **`thermal_expansion.cfg`** and `nozzle_expansion_coefficient` (0.055). The expansion offset
   is computed as `(print_target − 150) × 0.055 / 100` mm — it **assumes the Z-defining contact
   (`contact_z_home`) happens at 150 °C**. Every 10 °C of error there is ~0.0055 mm of first-layer
-  error. This is why the final contact gets an explicit settle-to-150 step below.
+  error. The contact guard exit's blocking `M109 S150` is what holds that (no extra settle
+  action; maintainer decision 2026-10-15).
 - **Both `clean` actions and both contact actions** (`contact_auto_calibrate`, `contact_z_home`)
   — each does a different job; see "Things easy to misread" in `docs/start_print_walkthrough.md`.
 - **`chamber_soak` and `print_default_chamber_temp_tolerance: 2.0`** — `docs/decisions.md`
@@ -105,10 +107,10 @@ Each is a default the maintainer already chose — execute as written.
      it never waits for cooling.
    - The first touch (`contact_auto_calibrate`, which only calibrates Beacon's proximity model
      for QGL/mesh) is left to the existing contact guard: fan-assisted, down to ≤ 180 °C.
-   - **New action `karman_contact_z_temp` immediately before `contact_z_home`** settles the
-     nozzle to **150 ± 2 °C** (part fan 100 % while cooling, `M109` if low) — because that touch
-     defines Z and the expansion compensation assumes 150 (see Out of scope). After QGL + mesh
-     the nozzle is normally already there, so this usually costs nothing.
+   - The guard exit's `M109 S150` after the calibrate touch brings the nozzle to 150 before QGL
+     and the mesh (a passive cool from ≤180 with the fan off, so it may take a minute), and the
+     Z-defining touch is therefore at 150 — the expansion compensation assumes that (see Out of
+     scope). No separate settle action (dropped 2026-10-15, maintainer).
 4. **Done =** before/after timings for a cold multi-tool start and a warm repeat start, plus a
    first layer and contact Z judged as good as before. No fixed target time.
 
@@ -151,11 +153,11 @@ variable_print_default_soak: 3
 `_USER_VARIABLES` override) with:
 
 ```
-variable_startprint_actions: "karman_nozzle_to_safe", "bed_soak", "karman_nozzle_warm", "chamber_soak", "clean", "contact_auto_calibrate", "tilt_calib", "bedmesh", "karman_contact_z_temp", "contact_z_home", "extruder_heating", "nozzle_expansion", "clean", "primeline"
+variable_startprint_actions: "karman_nozzle_to_safe", "bed_soak", "karman_nozzle_warm", "chamber_soak", "clean", "contact_auto_calibrate", "tilt_calib", "bedmesh", "contact_z_home", "extruder_heating", "nozzle_expansion", "clean", "primeline"
 ```
 
 Diff against the old list: `karman_nozzle_to_safe` added first; `extruder_preheating` replaced
-by `karman_nozzle_warm`; `karman_contact_z_temp` inserted before `contact_z_home`. Everything
+by `karman_nozzle_warm`. Everything
 else is identical and in the same order. Update the comment block above the line if it lists the
 actions.
 
@@ -186,21 +188,6 @@ gcode:
         M109 S{safe}
     {% endif %}
     RESPOND MSG="KARMAN: nozzle warm check done (entered at {printer.extruder.temperature|round(1)} C)"
-
-# contact_z_home defines Z, and thermal_expansion.cfg computes the hot-nozzle offset from 150 C.
-# Settle to safe +/- 2 C so that assumption holds (part fan only while cooling).
-[gcode_macro _START_PRINT_ACTION_KARMAN_CONTACT_Z_TEMP]
-gcode:
-    {% set safe = printer["gcode_macro _USER_VARIABLES"].safe_extruder_temp|float %}
-    M104 S{safe}
-    {% if printer.extruder.temperature > safe + 2 %}
-        M106 S255
-        TEMPERATURE_WAIT SENSOR=extruder MAXIMUM={safe + 2}
-        M106 S0
-    {% elif printer.extruder.temperature < safe - 2 %}
-        M109 S{safe}
-    {% endif %}
-    RESPOND MSG="KARMAN: contact Z temperature settled (was {printer.extruder.temperature|round(1)} C)"
 ```
 
 Note: Jinja renders the whole macro before any line executes, so each `RESPOND` reports the
@@ -222,9 +209,6 @@ for these cases, checking the emitted G-code:
 | `…NOZZLE_WARM` | 25 / 150 | `M109 S150.0` |
 | `…NOZZLE_WARM` | 200 / 150 | no M104, no M109 (just RESPOND) |
 | `…NOZZLE_WARM` | 25 / 0 | `M104 S150.0` **and** `M109 S150.0` |
-| `…CONTACT_Z_TEMP` | 175 / 150 | `M104`, `M106 S255`, `TEMPERATURE_WAIT … MAXIMUM=152.0`, `M106 S0` |
-| `…CONTACT_Z_TEMP` | 150.5 / 150 | `M104` only |
-| `…CONTACT_Z_TEMP` | 140 / 150 | `M104`, `M109 S150.0` |
 
 Each state JSON needs `gcode_macro _USER_VARIABLES` → `safe_extruder_temp: 150` and an
 `extruder` object with `temperature` and `target`.
@@ -261,7 +245,6 @@ loaded). Then the model runs the Step 1 timing command. Expected:
   blocking wait.
 - Total START_PRINT shorter than the 2.5–3 min baseline (the 27–47 s cooldown wait should be
   gone or replaced by a shorter fan-assisted one inside the contact guard).
-- `KARMAN: contact Z temperature settled (was ~150 C)`.
 - `Nozzle expansion offset: … applied` appears as before.
 
 **Ask the maintainer** to judge the first layer against previous prints of the same kind.
@@ -280,7 +263,7 @@ Then run the Step 1 timing command. Expected:
 - Bed heat-up, then **3** soak minutes (not 8).
 - No long wait at the warm check; the hotend is **not** oozing at Z50 during the soak (ask the
   maintainer to look).
-- Contact Z settled near 150, prime line and first layer good.
+- Prime line and first layer good.
 - Total START_PRINT ≈ baseline − ~5 min (soak) − the cooldown wait.
 
 **Ask the maintainer** to judge first layer and both colours' start.
@@ -288,10 +271,9 @@ Then run the Step 1 timing command. Expected:
 ### 8. Document (model)
 
 - `docs/start_print_walkthrough.md`: update the action list in Phase 2, step 17 (soak 3), step
-  18 (replaced by `karman_nozzle_warm`, plus `karman_nozzle_to_safe` before 17), add the
-  `karman_contact_z_temp` step before step 24, and the timeline table (use the measured numbers).
+  18 (replaced by `karman_nozzle_warm`, plus `karman_nozzle_to_safe` before 17), and the timeline table (use the measured numbers).
 - `docs/decisions.md`: new entry at the **top** (newest first):
-  `## 2026-MM-DD — START_PRINT cold-start speed-up: soak 3, nozzle to 150 after the unload, contact-Z settle`
+  `## 2026-MM-DD — START_PRINT cold-start speed-up: soak 3, nozzle to 150 after the unload`
   covering: why 3 not 0; why `extruder_preheating` was replaced (its M109 blocks on cooling);
   why the Z-defining contact must be at 150 (expansion reference) while the calibrate contact may
   be ≤ 180; the measured before/after times.
@@ -305,7 +287,6 @@ Then run the Step 1 timing command. Expected:
       blocking cool-to-150 wait (Step 6).
 - [ ] Cold multi-tool start: soak runs 3 min; nozzle target drops to 150 right after the
       unload; START_PRINT duration measured and compared to the baseline (Step 7).
-- [ ] `KARMAN: contact Z temperature settled` logged before `contact_z_home` on both tests.
 - [ ] Maintainer confirms first layer is **as good as before** on both tests.
 - [ ] Walkthrough + decisions.md updated; TODO.md task ticked.
 
@@ -313,7 +294,7 @@ Then run the Step 1 timing command. Expected:
 
 The maintainer runs commits. Git **only over SSH** (never on the mount). Propose:
 
-1. `feat: shorten start_print cold start (soak 3, nozzle to safe temp after unload, contact-z settle)`
+1. `feat: shorten start_print cold start (soak 3, nozzle to safe temp after unload)`
    — `variables.cfg`, `overrides.cfg` (+ `tools/visualize_toolchange.py` if Step 4 needed it).
 2. `docs: record the start_print cold-start speed-up` — `docs/start_print_walkthrough.md`,
    `docs/decisions.md`, `TODO.md`, this runbook (moved to `docs/runbooks/done/`).
