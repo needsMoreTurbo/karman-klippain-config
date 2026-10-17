@@ -69,7 +69,7 @@
 - **Never edit Happy Hare's Python.** Never edit Klippain framework files (`macros/`, `config/`).
 - **Never `MMU_TEST_FORM_TIP`** (CLAUDE.md) unless the ledger's compatibility check proved v4
   changed that behaviour. Test cuts with `MMU_EJECT` / swaps; fix desync with `MMU_RECOVER`.
-- **CAN** — already done before this series (`docs/runbooks/nightowl-can-wiring.md`). `[mcu mmu]`
+- **CAN** — already done before this series (done 2026-10-16, `docs/runbooks/nightowl-can-wiring.md`; ERB UUID `f2d9c8c4f555`). `[mcu mmu]`
   uses `canbus_uuid:` in `mcu.cfg`, and stays there. If v4's menuconfig asks for the MMU's
   connection, give the ERB's CAN UUID (from `mcu.cfg`), but keep `mcu.cfg` as the live definition
   (Step 3).

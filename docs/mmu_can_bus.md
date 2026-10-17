@@ -1,7 +1,8 @@
 # MMU on CAN — Leviathan bridge + ERB V2
 
-**Status (2026-09-13): planned — not yet wired or flashed.** Leviathan-side cable connector made;
-wiring later that week. Update this line when the conversion is done.
+**Status (2026-10-16): done — both MCUs run on CAN, and a mains power-cycle comes up ready with no
+`FIRMWARE_RESTART`.** Real `T0`↔`T1` swaps over CAN are still to be tested (they need the Nightwatch
+reinstalled); this line is updated when they pass. UUIDs: Leviathan `30fdcd6e3150`, ERB `f2d9c8c4f555`.
 **Why CAN, and what was rejected:** `docs/decisions.md` 2026-09-13.
 
 The ERB V2 (MMU MCU, RP2040) talks to Klipper over CAN on one 4-wire Micro-Fit cable that also
@@ -155,6 +156,25 @@ canbus_uuid: <ERB_UUID>
 
 Then update the status line above and the MMU line in `CLAUDE.md`, and commit via SSH.
 
+### Traps found doing it (2026-10-16)
+- **Put the ERB's USB-C on Pi bus 1 (`xhci-hcd.0`), never bus 3.** Bus 3 carries the Leviathan bridge
+  (and the C920). With the ERB's USB-C on the C920's jack, the Pi's `xhci-hcd.1` died ~16 s after the
+  ERB enumerated (`HC died`, `usb 3-1`/`3-2` disconnect), taking `can0` with it; only a Pi reboot
+  recovered it. On a K-Hub port (bus 1) the same ROM-boot entry worked. Check with `lsusb -t`.
+- **The bridge menuconfig is easy to get wrong.** "CAN bus (on PB5/PB6)" as the *Communication
+  interface* is plain CAN-only firmware with no USB, which would strand the Leviathan. The bridge is
+  **USB to CAN bus bridge (USB on PA11/PA12)**. Check the saved file has
+  `CONFIG_STM32_USBCANBUS_PA11_PA12=y`, `CONFIG_USBCANBUS=y`, `CONFIG_USB=y`, 
+  `CONFIG_CANBUS_FREQUENCY=1000000` before flashing.
+- **`sudo` needs a TTY, so it fails from an agent shell or `!`.** Stop/start Klipper through Moonraker
+  instead: `curl -X POST 'http://<pi>:7125/machine/services/stop?service=klipper'` (or `start`). 
+  `make` and `flashtool.py` need no `sudo`.
+- **Klipper auto-starts after a Pi reboot**, so stop it again before flashing.
+- **The Leviathan's `tx_error` read 15,203,379 (frozen) on first start and 0 after the next power-up.**
+  Probably accrued while it sat alone on the bus before the ERB joined (not measured). What matters is
+  that the counters aren't climbing.
+
+
 ## 4. Routine firmware update (after a Klipper update)
 
 **ERB first, Leviathan last** — flashing the bridge drops `can0`, and the ERB with it. No separate
@@ -165,10 +185,10 @@ sudo service klipper stop
 cd ~/klipper
 
 make clean && make KCONFIG_CONFIG=$HOME/klipper-kconfigs/erb-can.config
-~/katapult-env/bin/python3 ~/katapult/scripts/flashtool.py -i can0 -u <ERB_UUID> -f ~/klipper/out/klipper.bin
+~/katapult-env/bin/python3 ~/katapult/scripts/flashtool.py -i can0 -u f2d9c8c4f555 -f ~/klipper/out/klipper.bin
 
 make clean && make KCONFIG_CONFIG=$HOME/klipper-kconfigs/leviathan-canbridge.config
-~/katapult-env/bin/python3 ~/katapult/scripts/flashtool.py -i can0 -u <LEVIATHAN_UUID> -f ~/klipper/out/klipper.bin
+~/katapult-env/bin/python3 ~/katapult/scripts/flashtool.py -i can0 -u 30fdcd6e3150 -f ~/klipper/out/klipper.bin
 
 # Nitehawk is unchanged (USB, nitehawk-v2.config, flashtool -d /dev/serial/by-id/usb-Klipper_stm32g0b1xx_…)
 sudo service klipper start
@@ -176,7 +196,7 @@ sudo service klipper start
 - The Makefile runs `olddefconfig` when `src/Kconfig` is newer than a saved config, so new options
   take defaults. Add `menuconfig` with the same `KCONFIG_CONFIG=` to review them.
 - If the Leviathan flash times out waiting for its bootloader:
-  `flashtool.py -i can0 -u <LEVIATHAN_UUID> -r`, find `usb-katapult_stm32h743xx_…` in
+  `flashtool.py -i can0 -u 30fdcd6e3150 -r`, find `usb-katapult_stm32h743xx_…` in
   `/dev/serial/by-id/`, then `flashtool.py -d <that path> -f ~/klipper/out/klipper.bin`.
 
 ## 5. Recovery

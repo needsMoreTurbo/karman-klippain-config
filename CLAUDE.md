@@ -21,7 +21,7 @@ readlink -e config >/dev/null 2>&1 && echo "MOUNT/on-Pi" || echo "WORKSTATION CL
 - Frequent materials: **ABS/ASA** (bed ~105 °C) — chamber/bed thermal behavior matters.
 
 ### MMU (the largest subsystem — most work happens here)
-- **NightOwl 2-gate MMU** driven by **Happy Hare v3.4.2** (Type-B / VirtualSelector), on its own `[mcu mmu]` (Fysetc Rabbit Burrow). Encoderless: the BTT SFS was removed, so FlowGuard runs off the **PSF sync-feedback** sensor, not an encoder.
+- **NightOwl 2-gate MMU** driven by **Happy Hare v3.4.2** (Type-B / VirtualSelector), on its own `[mcu mmu]` (an **ERB V2.0**; `mcu.cfg` calls it "Rabbit Burrow"), which is **on CAN via the Leviathan's USB-to-CAN bridge** (`canbus_uuid:`, `docs/mmu_can_bus.md`; the Leviathan `[mcu]` is on CAN too). Encoderless: the BTT SFS was removed, so FlowGuard runs off the **PSF sync-feedback** sensor, not an encoder.
 - **Filamatrix toolhead cutter** — back-left depressor, cut line y341 (x15 → x0) at **z15**. `form_tip_macro: _MMU_CUT_TIP`.
 - **Blobifier** purge tray/bucket at the back left — `purge_macro: BLOBIFIER`, `force_purge_standalone: 1` (slicer wipe tower is OFF). Servo `PC3`, bucket switch `PC1`.
 - **Gantry-mounted nozzle rest (x45) and brush (x53–88)** at y_max. Gantry-mounted ⇒ their Z tracks the toolhead, so only an **X slide** seats/unseats the nozzle; Z is irrelevant to engagement.
@@ -152,6 +152,11 @@ uv run tools/visualize_toolchange.py    # writes tools/toolchange_viz.html (giti
 It simulates the real macros with the live config values, draws the path over a bed map, and
 auto-checks the keep-out zones above. Expect "clean" on all scenarios. Cheaper and safer than
 re-jogging by hand — but it can't see HH's internal Python moves, which it marks "inferred".
+
+⚠️ **After any Klipper update, reflash the ERB first and the Leviathan last** (`docs/mmu_can_bus.md` §4).
+Both MCUs are on CAN through the Leviathan bridge, so updating the host alone leaves them mismatched,
+and flashing the bridge drops `can0` (and the ERB with it). `sudo` needs a TTY: stop/start Klipper via
+Moonraker (`/machine/services/stop|start?service=klipper`) from an agent shell.
 
 There is **no** offline Klipper config linter — the authoritative check is `FIRMWARE_RESTART` on the Pi after deploy.
 

@@ -1,3 +1,25 @@
+## 2026-10-16 — MMU on CAN: done; brick retired; order moved ahead of HH v4
+**Decided/done:** the ERB V2.0 and the Leviathan now both run on `canbus_uuid:` (`mcu.cfg`) through one
+Micro-Fit cable (24 V + CAN) from J33; the dedicated 24 V brick and the ERB's USB-C are retired.
+Leviathan runs USB-to-CAN bridge firmware (UUID `30fdcd6e3150`); ERB runs Katapult + Klipper for CAN
+(UUID `f2d9c8c4f555`). Kconfigs are in `~/klipper-kconfigs/` (`erb-usb`, `leviathan-canbridge`,
+`erb-katapult-can`, `erb-can`). Runbook: `docs/runbooks/nightowl-can-wiring.md`; procedure:
+`docs/mmu_can_bus.md`.
+**Why it was done now:** the 2026-10-11 order change (CAN ahead of HH v4, so a later fault isn't
+confounded with a v4 regression), reversing 2026-10-10.
+**J33 fuse finding:** J33 pin 1 sits on `+24V` after the Leviathan's 10 A main fuse F3 (Leviathan V1.3
+KiCad), so no extra fuse; hence **18 AWG** for the cable's power conductors.
+**Measured:** §2 meter checks passed (60 Ω, pin 7↔7 and 6↔6 ≈ 0 Ω, power). A **mains power-cycle comes up
+ready with no `FIRMWARE_RESTART`**, brick gone (the stale-shutdown trap of 2026-09-12 is removed).
+`can0` ERROR-ACTIVE, 0 errors/drops; `mmu` rx/tx_error 0, `bytes_retransmit` 0 at start.
+**What the docs got wrong / missed in practice:** (1) the ERB's USB-C on Pi bus 3 (the Leviathan's
+controller) crashed `xhci-hcd.1` and dropped `can0` — use bus 1; (2) the bridge menuconfig's "CAN bus
+(on PB5/PB6)" interface is CAN-only with no USB — caught before flashing, the bridge is "USB to CAN bus
+bridge"; (3) `sudo` needs a TTY (use Moonraker to stop/start Klipper). All now in `mmu_can_bus.md`.
+**Not yet verified:** `T0`↔`T1` swaps over CAN (the gear stepper homes to the Filamatrix switch on the
+Nitehawk, which is still USB — watch for `Communication timeout during homing`), and a 10+ min idle
+`bytes_retransmit` check. They need the Nightwatch reinstalled; runbook Step 9.
+
 ## 2026-10-16 — PET ooze: material-based hot wipe at START_PRINT, cool-then-wipe at END_PRINT
 **Problem:** after PET prints the ooze hardens on the nozzle; 150 C is too cold for the brush.
 **Decided (maintainer):** (1) START_PRINT heats on the nozzle rest to a per-material wipe temp

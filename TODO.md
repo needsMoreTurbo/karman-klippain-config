@@ -5,9 +5,9 @@ Updated 2026-10-09 — 🎉 **MMU is functionally complete**: cutter + Blobifier
 a 2-colour print (2026-07-24). Remaining work is tuning, safety loose ends, and relocation.
 
 ## ▶ Next up (in order)
-1. **NightOwl on CAN** — one Micro-Fit cable (24 V + CAN) from the Leviathan, during the current
-   NightOwl maintenance, on HH v3 (maintainer, 2026-10-11). Retires the brick and USB-C. — runbook:
-   `docs/runbooks/nightowl-can-wiring.md`
+1. **NightOwl on CAN — finish** — wiring, flashing and the cold power-cycle test are **done
+   (2026-10-16)**. Left: reinstall the Nightwatch, then sensors + `T0`↔`T1` swaps over CAN (runbook
+   Step 9). — runbook: `docs/runbooks/nightowl-can-wiring.md`
 2. **PET ooze survives the START_PRINT wipe** — hot wipe at 230 °C on the rest after PET prints,
    end-of-print wipe + cooldown fan. — runbook: `docs/runbooks/nozzle-ooze-pet-hot-wipe.md`
 3. **Cut cold-start time in START_PRINT** (after #2 — same action list) — soak 8 → 3, nozzle to 150
@@ -36,7 +36,7 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 6. **HelixScreen UI migration** — in progress alongside the MMU work, not blocking it: rotation
    and caselight bugs fixed, repo commits and settings tuning still open, KlipperScreen
    replace-vs-coexist decision deferred. — runbook: `docs/runbooks/helixscreen-migration.md`
-7. **Finalize NightOwl position** — ~~relocate closer to the filament-load side~~ ✓ · ~~re-run bowden cal~~ ✓ (2026-10-09) · **still open:** wire to printer 24 V + CAN via microfit from the Leviathan's CAN port (decided 2026-09-13 — `docs/mmu_can_bus.md`). — runbook: `docs/runbooks/nightowl-can-wiring.md`  ← *now*
+7. **Finalize NightOwl position** — ~~relocate closer to the filament-load side~~ ✓ · ~~re-run bowden cal~~ ✓ (2026-10-09) · ~~wire to printer 24 V + CAN via microfit from the Leviathan's CAN port~~ ✓ (2026-10-16 — `docs/mmu_can_bus.md`) · **still open:** swaps over CAN once the Nightwatch is back (runbook Step 9). — runbook: `docs/runbooks/nightowl-can-wiring.md`  ← *now*
 8. **Migrate Happy Hare v3 → v4** — chosen over AFC (`docs/decisions.md` 2026-10-10); runs *after*
    the CAN conversion (order changed 2026-10-11). Three runbooks, see *Happy Hare v4 migration*.
 9. **Optimize the toolchange sequence:**
@@ -63,11 +63,10 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 - [ ] Watch purge/flushing amounts with the cutter (cut fragment adds to what must purge)
 
 ## NightOwl exterior wiring
-- [x] short term, setup dedicated 24v power brick (variable voltage unit)
-- [ ] print + fit the **Micro-Fit keystone adapter** (panel pass-through for the CAN cable) — part of
-  the CAN runbook. _Hex-insert adapters and the barrel-jack connector dropped 2026-10-15 — the single
-  Micro-Fit replaces the brick and USB-C._
-- [ ] wire microfit wire internally to the printer — **24 V + CAN from J33; 18 AWG power (J33 sits
+- [x] short term, setup dedicated 24v power brick (variable voltage unit) — **retired 2026-10-16** (ERB now powered over the CAN cable)
+- [x] print + fit the **Micro-Fit keystone adapter** (panel pass-through for the CAN cable) — done
+  (confirmed by the maintainer 2026-10-16).
+- [x] wire microfit wire internally to the printer (done 2026-10-16; swaps over CAN still to verify) — **24 V + CAN from J33; 18 AWG power (J33 sits
   behind the Leviathan's 10 A main fuse)** — runbook: `docs/runbooks/nightowl-can-wiring.md`
   _Why it matters beyond tidiness (found 2026-09-13):_ on the dedicated brick the MMU MCU stays
   powered when the printer is switched off, so it keeps Klipper's shutdown state across power

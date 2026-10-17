@@ -9,7 +9,7 @@ bridge. The dedicated 24 V brick and the ERB's USB-C cable are retired. **Done m
   stale-shutdown trap is gone);
 - after the Nightwatch is reinstalled, real `T0`↔`T1` swaps work over CAN.
 
-**Status:** 🟡 not started
+**Status:** 🟡 Steps 1–8 and 11 done 2026-10-16 (cold power-cycle passes); **Step 9 (swaps over CAN) pending** the Nightwatch reinstall
 **Created:** 2026-10-15
 **Prerequisites:**
 - The printer is idle and **no print is needed for several hours**: the printer is unusable from
@@ -288,3 +288,43 @@ The kconfigs live in `~/klipper-kconfigs/` on the Pi, outside the repo. Nothing 
 
 - **2026-10-15** — Runbook written (architecture session). J33 fuse checked against the Leviathan
   V1.3 KiCad (fused, 10 A F3). Board confirmed as ERB V2.0. Nothing wired or flashed.
+- **2026-10-16** — Step 1 preflight (read-only) done. Klipper `v0.13.0-662-gbd99b19b0`; `status -s`
+  lists only untracked user extras (`auto_speed`, `autotune_tmc`, `beacon`, `gcode_shell_command`,
+  `mmu/`, `mmu_*`…), no modified tracked files. `~/klipper/.config` is the ERB USB build (RP2040,
+  `0x10004000`, USB). `~/katapult-env` present. `~/klipper-kconfigs/` holds `leviathan.config`,
+  `nitehawk-v1.config`, `nitehawk-v2.config` (no `erb-usb.config` yet — §3.0 saves it).
+  `mcu.cfg` still on `serial:` (lines 66 / 200). Cable not yet built.
+- **2026-10-16** — Steps 2–3 done (maintainer-reported). Cable built with H/L crossed (keystone
+  fitting not confirmed). §2 meter checks (60 Ω, U12/U11 pin 7↔7 and 6↔6 ≈ 0 Ω, power/GND) all passed with power
+  off. The 24 V brick was disconnected entirely and physically can't reach the ERB any more, so
+  Step 8's "unplug the brick" is already done; the ERB is cable-powered from first power-on.
+  Next: Step 4 (Leviathan → bridge).
+- **2026-10-16** — Step 4 done. First menuconfig save was CAN-only (no USB); caught before flashing
+  and redone as USB-to-CAN bridge. Klipper stopped via Moonraker (`/machine/services/stop`) since
+  `sudo` needs a TTY. `erb-usb.config` saved. Leviathan flashed by the maintainer; verified:
+  `can0` UP / ERROR-ACTIVE, 1 Mbit/s, counters 0; Leviathan serial entry gone; **Leviathan UUID
+  `30fdcd6e3150`** (Application: Klipper). ERB not visible yet (still USB firmware), as expected.
+  Next: Step 5 (ERB Katapult → CAN).
+- **2026-10-16** — Step 5 done. First ROM-boot attempt crashed the Pi's `xhci-hcd.1` (bus 3 = C920 +
+  Leviathan; ERB's USB-C had enumerated on the C920's jack `3-1`) — `HC died`, `can0` lost; Pi reboot
+  recovered it, Leviathan bridge intact. Retried with the ERB's USB-C on a K-Hub port (bus 1, other
+  controller): `2e8a:0003` appeared, no crash. **Lesson: put the ERB's USB-C on bus 1, never bus 3.**
+  Katapult CAN flashed; `erb-katapult-can.config` saved. `flashtool.py -i can0 -q`: **ERB UUID
+  `f2d9c8c4f555`** (Application: Katapult); Leviathan `30fdcd6e3150` (Klipper). Cable, termination
+  and bridge proven. Next: Step 6 (ERB Klipper → CAN).
+- **2026-10-16** — Steps 6–7 done. `erb-can.config` built and flashed over CAN (`-u f2d9c8c4f555`);
+  both MCUs report `Application: Klipper`. `mcu.cfg` now `canbus_uuid:` for `[mcu]` (30fdcd6e3150) and
+  `[mcu mmu]` (f2d9c8c4f555), dated comments added, `serial:` lines commented, Nitehawk untouched.
+  Klipper started via Moonraker → **ready**. Bus: `can0` ERROR-ACTIVE, 0 errors/drops; Stats
+  `mmu rx_error=0 tx_error=0 bytes_retransmit=0`; `mcu` rx_error=692 / tx_error=15203379 are frozen
+  (not climbing over 16 s) — likely accrued while the Leviathan was alone on the bus. Re-check after
+  the cold power-cycle. Next: Step 8 (cold power-cycle).
+- **2026-10-16** — Step 8 cold power-cycle: mains off/on, no `FIRMWARE_RESTART`, no brick. Pi up
+  21:48:40, Klipper started 21:48:41 → **ready**, no `Can not update MCU 'mmu'` / timeout lines.
+  `can0` ERROR-ACTIVE, 0 errors/drops; `mcu` and `mmu` bus_state=active, rx/tx_error=0 (the earlier
+  `mcu` tx_error=15203379 reset to 0 — it was a leftover from the Leviathan sitting alone on the bus).
+  Idle bytes_retransmit check (10+ min) pending.
+- **2026-10-16** — Step 11 docs done: `mmu_can_bus.md` (status, UUIDs in §4, traps section), CLAUDE.md
+  (MMU bullet + reflash-order note), `decisions.md` entry, TODO.md (Next up, roadmap #7, wiring section;
+  keystone ticked after the maintainer confirmed it's fitted), v4 runbooks. Runbook stays in `docs/runbooks/` (not
+  `done/`) until Step 9 passes.

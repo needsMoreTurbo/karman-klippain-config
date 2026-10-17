@@ -21,7 +21,7 @@ No v4 code is installed in this runbook.
   START_PRINT MMU path is HH-only, and the tooling is written against HH. It recommended v4.
   The maintainer runs AFC on another printer and finds it easier. v4's `menuconfig` installer
   targets exactly the v3 configuration burden.
-  **Timing:** runs **after** the CAN conversion (`docs/runbooks/nightowl-can-wiring.md`). The
+  **Timing:** runs **after** the CAN conversion (done 2026-10-16, `docs/runbooks/nightowl-can-wiring.md`; swaps over CAN still to verify). The
   maintainer first chose v4-before-CAN (2026-10-10), then reversed it on 2026-10-11 so the CAN
   work could happen during NightOwl maintenance. That matches the evaluation's advice: hardware
   first, on known-good software. **Prerequisite:** the CAN runbook is done, and `[mcu mmu]` in
