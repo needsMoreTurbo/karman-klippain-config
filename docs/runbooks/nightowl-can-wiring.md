@@ -328,3 +328,6 @@ The kconfigs live in `~/klipper-kconfigs/` on the Pi, outside the repo. Nothing 
   (MMU bullet + reflash-order note), `decisions.md` entry, TODO.md (Next up, roadmap #7, wiring section;
   keystone ticked after the maintainer confirmed it's fitted), v4 runbooks. Runbook stays in `docs/runbooks/` (not
   `done/`) until Step 9 passes.
+- **2026-10-18** — Idle `bytes_retransmit` check passed (Step 8 item 4): ~36 h up, 11 samples over
+  10 min, `mmu`/`mcu` `bytes_retransmit=0` flat, rx/tx_error 0, `can0` clean, no timeouts in the log.
+  `mmu tx_retries` rose slowly (303→360 over ~6 h) but was flat in the window. Only Step 9 remains.

@@ -16,9 +16,13 @@ ready with no `FIRMWARE_RESTART`**, brick gone (the stale-shutdown trap of 2026-
 controller) crashed `xhci-hcd.1` and dropped `can0` — use bus 1; (2) the bridge menuconfig's "CAN bus
 (on PB5/PB6)" interface is CAN-only with no USB — caught before flashing, the bridge is "USB to CAN bus
 bridge"; (3) `sudo` needs a TTY (use Moonraker to stop/start Klipper). All now in `mmu_can_bus.md`.
+**Idle check (2026-10-18):** after ~36 h up, `mmu` and `mcu` `bytes_retransmit=0` flat over an 11-sample
+10 min window, rx/tx_error 0, `can0` 0 errors/drops, no `Timeout`/`Lost communication` in `klippy.log`.
+`mmu tx_retries` crept 303→360 over ~6 h of the log (a few per 2000 s) and was flat during the window;
+watch it, but nothing is failing.
 **Not yet verified:** `T0`↔`T1` swaps over CAN (the gear stepper homes to the Filamatrix switch on the
-Nitehawk, which is still USB — watch for `Communication timeout during homing`), and a 10+ min idle
-`bytes_retransmit` check. They need the Nightwatch reinstalled; runbook Step 9.
+Nitehawk, which is still USB — watch for `Communication timeout during homing`). Needs the Nightwatch
+reinstalled; runbook Step 9.
 
 ## 2026-10-16 — PET ooze: material-based hot wipe at START_PRINT, cool-then-wipe at END_PRINT
 **Problem:** after PET prints the ooze hardens on the nozzle; 150 C is too cold for the brush.
