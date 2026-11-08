@@ -9,7 +9,7 @@ bridge. The dedicated 24 V brick and the ERB's USB-C cable are retired. **Done m
   stale-shutdown trap is gone);
 - after the Nightwatch is reinstalled, real `T0`↔`T1` swaps work over CAN.
 
-**Status:** 🟡 Steps 1–8 and 11 done 2026-10-16 (cold power-cycle passes); **Step 9 (swaps over CAN) pending** the Nightwatch reinstall
+**Status:** ✅ done 2026-11-08 — Steps 1–8 and 11 done 2026-10-16 (cold power-cycle passes); Step 9 (Nightwatch back, swaps over CAN) confirmed working by the maintainer 2026-11-08
 **Created:** 2026-10-15
 **Prerequisites:**
 - The printer is idle and **no print is needed for several hours**: the printer is unusable from
@@ -264,15 +264,16 @@ USB**. The ERB's RP2040 ROM boot can't be overwritten, so it is always recoverab
 
 ## Verification
 
-- [ ] §2 meter checks passed before power was applied (Step 3).
-- [ ] `can0` is up; both UUIDs recorded; the ERB reports `Application: Klipper` (Steps 4–6).
-- [ ] Klipper is ready with `[mcu]` and `[mcu mmu]` on `canbus_uuid:`; `can0` is `ERROR-ACTIVE`
+- [x] §2 meter checks passed before power was applied (Step 3).
+- [x] `can0` is up; both UUIDs recorded; the ERB reports `Application: Klipper` (Steps 4–6).
+- [x] Klipper is ready with `[mcu]` and `[mcu mmu]` on `canbus_uuid:`; `can0` is `ERROR-ACTIVE`
       with counters flat (Steps 7–8).
-- [ ] **A mains power-cycle comes up ready with no `FIRMWARE_RESTART`**, with the brick
+- [x] **A mains power-cycle comes up ready with no `FIRMWARE_RESTART`**, with the brick
       disconnected (Step 8). This is the objective.
-- [ ] After the Nightwatch is reinstalled: all switches correct, and two swaps each way with no
-      homing timeout or retransmit growth (Step 9).
-- [ ] Docs, CLAUDE.md, decisions.md, TODO.md and the v4 runbooks are updated (Step 11).
+- [x] After the Nightwatch is reinstalled: all switches correct, and two swaps each way with no
+      homing timeout or retransmit growth (Step 9). _Maintainer-reported 2026-11-08 ("the machine
+      works"); no log check by the model._
+- [x] Docs, CLAUDE.md, decisions.md, TODO.md and the v4 runbooks are updated (Step 11).
 
 ## Commit guidance
 
@@ -331,3 +332,5 @@ The kconfigs live in `~/klipper-kconfigs/` on the Pi, outside the repo. Nothing 
 - **2026-10-18** — Idle `bytes_retransmit` check passed (Step 8 item 4): ~36 h up, 11 samples over
   10 min, `mmu`/`mcu` `bytes_retransmit=0` flat, rx/tx_error 0, `can0` clean, no timeouts in the log.
   `mmu tx_retries` rose slowly (303→360 over ~6 h) but was flat in the window. Only Step 9 remains.
+- **2026-11-08** — Step 9 done (maintainer-reported): Nightwatch reinstalled, MMU working over CAN.
+  Runbook closed and moved to `docs/runbooks/done/`.

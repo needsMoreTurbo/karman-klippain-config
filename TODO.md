@@ -5,17 +5,12 @@ Updated 2026-10-09 — 🎉 **MMU is functionally complete**: cutter + Blobifier
 a 2-colour print (2026-07-24). Remaining work is tuning, safety loose ends, and relocation.
 
 ## ▶ Next up (in order)
-1. **NightOwl on CAN — finish** — wiring, flashing and the cold power-cycle test are **done
-   (2026-10-16)**. Left: reinstall the Nightwatch, then sensors + `T0`↔`T1` swaps over CAN (runbook
-   Step 9). — runbook: `docs/runbooks/nightowl-can-wiring.md`
-2. **PET ooze survives the START_PRINT wipe** — hot wipe at 230 °C on the rest after PET prints,
-   end-of-print wipe + cooldown fan. — runbook: `docs/runbooks/nozzle-ooze-pet-hot-wipe.md`
-3. **Cut cold-start time in START_PRINT** (after #2 — same action list) — soak 8 → 3, nozzle to 150
+1. **Cut cold-start time in START_PRINT** (PET-ooze runbook done; its actions are already folded in) — soak 8 → 3, nozzle to 150
    right after the start unload, fan-assisted cooldown. — runbook:
    `docs/runbooks/start-print-cold-start-speedup.md`
-4. **Gate temperature follows the material** (and stops reverting to 245 °C on a colour edit in
+2. **Gate temperature follows the material** (and stops reverting to 245 °C on a colour edit in
    Mainsail) — small, works on v3 now. — runbook: `docs/runbooks/hh-gate-temp-by-material.md`
-5. **Happy Hare v4 migration** (3 runbooks, in order — see *Happy Hare v4 migration* below) — after
+3. **Happy Hare v4 migration** (3 runbooks, in order — see *Happy Hare v4 migration* below) — after
    the CAN conversion (order changed 2026-10-11).
 
 _Closed 2026-10-09 (maintainer): Orca prime tower confirmed OFF · PA set in the Orca filament
@@ -36,7 +31,7 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 6. [x] **Touchscreen UI** — HelixScreen tried 2026-08 → 2026-11 and rejected (too dense for the 4.3"
    panel); reverted to KlipperScreen-HH (2026-11-08). — runbook:
    `docs/runbooks/done/klipperscreen-revert.md`
-7. **Finalize NightOwl position** — ~~relocate closer to the filament-load side~~ ✓ · ~~re-run bowden cal~~ ✓ (2026-10-09) · ~~wire to printer 24 V + CAN via microfit from the Leviathan's CAN port~~ ✓ (2026-10-16 — `docs/mmu_can_bus.md`) · **still open:** swaps over CAN once the Nightwatch is back (runbook Step 9). — runbook: `docs/runbooks/nightowl-can-wiring.md`  ← *now*
+7. [x] **Finalize NightOwl position** — ~~relocate closer to the filament-load side~~ ✓ · ~~re-run bowden cal~~ ✓ (2026-10-09) · ~~wire to printer 24 V + CAN via microfit from the Leviathan's CAN port~~ ✓ (2026-10-16 — `docs/mmu_can_bus.md`) · ~~swaps over CAN once the Nightwatch is back~~ ✓ (2026-11-08). — runbook: `docs/runbooks/done/nightowl-can-wiring.md`
 8. **Migrate Happy Hare v3 → v4** — chosen over AFC (`docs/decisions.md` 2026-10-10); runs *after*
    the CAN conversion (order changed 2026-10-11). Three runbooks, see *Happy Hare v4 migration*.
 9. **Optimize the toolchange sequence:**
@@ -66,8 +61,8 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 - [x] short term, setup dedicated 24v power brick (variable voltage unit) — **retired 2026-10-16** (ERB now powered over the CAN cable)
 - [x] print + fit the **Micro-Fit keystone adapter** (panel pass-through for the CAN cable) — done
   (confirmed by the maintainer 2026-10-16).
-- [x] wire microfit wire internally to the printer (done 2026-10-16; swaps over CAN still to verify) — **24 V + CAN from J33; 18 AWG power (J33 sits
-  behind the Leviathan's 10 A main fuse)** — runbook: `docs/runbooks/nightowl-can-wiring.md`
+- [x] wire microfit wire internally to the printer (done 2026-10-16; swaps over CAN verified 2026-11-08) — **24 V + CAN from J33; 18 AWG power (J33 sits
+  behind the Leviathan's 10 A main fuse)** — runbook: `docs/runbooks/done/nightowl-can-wiring.md`
   _Why it matters beyond tidiness (found 2026-09-13):_ on the dedicated brick the MMU MCU stays
   powered when the printer is switched off, so it keeps Klipper's shutdown state across power
   cycles — every cold start after a USB dropout fails with `Can not update MCU 'mmu' config as it
@@ -229,13 +224,12 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
   — a stale `nozzle_expansion_applied_offset` cancelled the new offset exactly, and the console
   message reported the *target* rather than the delta actually issued, which hid it. Both fixed
   in `thermal_expansion.cfg`; see `docs/decisions.md` 2026-08-02.
-- [ ] **PET ooze survives the START_PRINT nozzle wipe** — after PET prints the nozzle oozes while
+- [x] **PET ooze survives the START_PRINT nozzle wipe** — ✅ done 2026-11-08 (maintainer) — after PET prints the nozzle oozes while
   cooling on the rest; at the next start the hardened ooze is still attached and 150 °C is too cold
   for the brush to remove it. Decided 2026-10-10, amended 2026-10-15/16: START_PRINT hot-wipes on the rest at
   a per-material temp (PET 230, PC/PA 200, ABS/ASA 180) keyed on the last nozzle material (saved by END_PRINT);
   END_PRINT cools to that temp, wipes (`BLOBIFIER_CLEAN`), keeps fan-cooling; **no END_PRINT retract** (cut-margin
-  coupling). Applied and running; waiting on the ooze verdict (see the runbook status log).
-  Run before the cold-start task below. — runbook: `docs/runbooks/nozzle-ooze-pet-hot-wipe.md`
+  coupling). — runbook: `docs/runbooks/done/nozzle-ooze-pet-hot-wipe.md`
 - [ ] **Cut cold-start time in START_PRINT** (maintainer, `docs/issues.md` 2026-08-08: "just too
   long"). Traced 2026-10-09 — on a multi-tool print the sequence fights itself:
   1. `_KLIPPAIN_MMU_INIT` runs `MMU_UNLOAD` **before** any `startprint_actions` (always, when
@@ -251,12 +245,13 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
   _Decided 2026-10-09:_ soak **3** min; nozzle target 150 (no wait) right after the unload; the
   calibrate touch may happen at ≤ 180 °C (fan-assisted), the Z-defining touch runs at 150 via the guard exit —
   runbook: `docs/runbooks/start-print-cold-start-speedup.md`
-- [ ] **END_PRINT `retract_filament` is now a complete no-op** — with `mmu_unload_on_end_print:
+- [x] **END_PRINT `retract_filament` is now a complete no-op** — with `mmu_unload_on_end_print:
   False` the MMU branch is gated off and the plain-retract `elif` is unreachable
   (`klippain_mmu_enabled` is True). Decide whether END_PRINT should retract at all now that
   filament stays loaded in the UHF melt zone through cooldown. Same kind of audit as START_PRINT.
   _Being decided by the PET-ooze runbook (2026-10-10): no END_PRINT retract — it would silently
-  shift the next cut; close this when that runbook lands._
+  shift the next cut._ ✅ Closed 2026-11-08 with that runbook — no END_PRINT retract
+  (`docs/decisions.md` 2026-10-16).
 - [ ] **Reconsider "MMU profiles must send CHAMBER=0"** (`docs/decisions.md` 2026-07-14) — that rule
   was a workaround for `chamber_temp_tolerance: 0.0`, which is now 2.0. Keep setpoints ≤ ~55 °C.
 - [ ] **Fuzz the Beacon contact point** so the two nozzle touches per print stop wearing one spot on
@@ -305,6 +300,16 @@ decisions lives in `docs/decisions.md`; per-objective execution records are in
 `docs/runbooks/done/`._
 
 ## ✅ Recently completed
+
+### 2026-11-08 — PET ooze fix confirmed
+Per-material hot wipe at START_PRINT (PET 230, PC/PA 200, ABS/ASA 180) and cool-then-wipe at
+END_PRINT confirmed working by the maintainer. The cold-start runbook's action list was amended to
+keep the hot-wipe actions. — runbook: `docs/runbooks/done/nozzle-ooze-pet-hot-wipe.md`
+
+### 2026-11-08 — NightOwl on CAN finished
+Nightwatch reinstalled and the MMU confirmed working over CAN (maintainer-reported), closing the
+last step of the CAN conversion (wiring, flashing and the cold power-cycle test were done
+2026-10-16). — runbook: `docs/runbooks/done/nightowl-can-wiring.md`
 
 ### 2026-11-08 — touchscreen back on KlipperScreen-HH; HelixScreen uninstalled
 HelixScreen (2026-08 → 2026-11) closed: its completed tasks (rotation, caselight `scale: 1`, config

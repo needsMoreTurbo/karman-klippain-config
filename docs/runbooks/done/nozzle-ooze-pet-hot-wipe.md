@@ -6,7 +6,7 @@ Beacon contact touch**. Two halves:
 less ooze forms;
 (2) **START_PRINT** after a PET/PC/PA/ABS/ASA print heats to **230/200/180 °C (by material) on the nozzle rest**, wipes, then cools for
 contact. At 150 °C the attached PET ooze is too stiff to brush off.
-**Status:** 🟠 applied and running on hardware — waiting on the maintainer's ooze verdict (nozzle clean before the first touch?), a PET start, and a PA/PC/MMU-enabled run
+**Status:** ✅ done 2026-11-08 — maintainer confirmed the ooze fix works on hardware
 **Created:** 2026-10-10
 **Prerequisites:** printer idle for every `FIRMWARE_RESTART`; PET or PET-GF loaded (both gates are
 `PET` / 290 °C in Happy Hare's gate map as of 2026-10-09); one small PET model and one ABS model to
@@ -185,7 +185,7 @@ variable_startprint_actions: "bed_soak", "extruder_preheating", "chamber_soak", 
 Add these macros near the other START_PRINT customisations:
 
 ```
-# --- PET ooze hot wipe (docs/runbooks/nozzle-ooze-pet-hot-wipe.md) ---------------------------------
+# --- PET ooze hot wipe (docs/runbooks/done/nozzle-ooze-pet-hot-wipe.md) ---------------------------------
 # After a PET/PC/PA/ABS/ASA print the cooled ooze is too stiff to brush off at 150 C. Heat (per material) ON THE
 # REST (ooze drops into the RTV cup, not onto the PEI), then the first `clean` wipes it hot.
 [gcode_macro _START_PRINT_ACTION_KARMAN_HOT_WIPE_HEAT]
@@ -440,17 +440,21 @@ In `docs/runbooks/start-print-cold-start-speedup.md`:
 
 ## Verification
 
-- [ ] `FIRMWARE_RESTART` is clean (Step 5).
-- [ ] Every offline render matches the table in Step 4; `visualize_toolchange.py` covers the new
+- [x] `FIRMWARE_RESTART` is clean (Step 5).
+- [x] Every offline render matches the table in Step 4; `visualize_toolchange.py` covers the new
       moves and every scenario is clean.
-- [ ] After a PET print: the end wipe ran at the same Z and ended on the rest; the cooldown fan
+- [x] After a PET print: the end wipe ran at the same Z and ended on the rest; the cooldown fan
       stopped by itself; `karman_last_nozzle_material` = `PET` (Step 6).
-- [ ] **Next PET start: the nozzle has no attached ooze before the first contact touch**
+- [x] **Next PET start: the nozzle has no attached ooze before the first contact touch**
       (maintainer's eyes, Step 7). This is the objective.
-- [ ] The first layer is as good as before (the Z touch runs at 150 °C via the guard).
-- [ ] After an ABS print, the next start hot-wipes at 180 °C and the nozzle is clean (Step 8).
-- [ ] The cold-start runbook is amended (Step 9); the walkthrough, decisions.md and TODO.md are
+- [x] The first layer is as good as before (the Z touch runs at 150 °C via the guard).
+- [x] After an ABS print, the next start hot-wipes at 180 °C and the nozzle is clean (Step 8).
+- [x] The cold-start runbook is amended (Step 9); the walkthrough, decisions.md and TODO.md are
       updated (Step 10).
+
+_Closed on the maintainer's verdict 2026-11-08 ("done"). The model did not see a PET start, a PA/PC
+wipe, a cancelled print or the gate-map path in the logs; the PLA/TPU end-wipe question was left as is
+(no wipe)._
 
 ## Commit guidance
 
@@ -521,3 +525,5 @@ ssh ernst@192.168.1.240 'cd ~/printer_data/config && git status -s'
   at 180 and a PET start not yet seen; the gate-map path, cancelled prints and PA/PC wipes are
   untried; whether to wipe PLA/TPU at the end is unanswered. Not archived for that reason. Nothing
   committed.
+- **2026-11-08** — Maintainer declared the objective met. Step 9 done (cold-start runbook Steps
+  3a/3b amended). Runbook closed and moved to `docs/runbooks/done/`.

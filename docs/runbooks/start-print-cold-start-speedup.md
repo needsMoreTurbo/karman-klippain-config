@@ -6,11 +6,10 @@ in repo-root files: shorter bed soak, hotend dropped to the contact-safe tempera
 the start-of-print MMU unload, and a cooldown that no longer blocks on a fan-less wait to 150 °C.
 **Status:** 🟡 not started
 **Created:** 2026-10-09
-**⚠️ Run order:** execute **after** `docs/runbooks/nozzle-ooze-pet-hot-wipe.md` (maintainer, 2026-10-10).
+**⚠️ Run order:** execute **after** `docs/runbooks/done/nozzle-ooze-pet-hot-wipe.md` (maintainer, 2026-10-10).
 That runbook adds `karman_hot_wipe_heat` / `karman_hot_wipe_cool` around the first `clean`; its
-Step 9 amends Steps 3a/3b here. (`karman_contact_z_temp` was dropped on 2026-10-15; this runbook
-no longer adds it either.)
-If that amendment has not happened yet, stop and do it first.
+Step 9 amended Steps 3a/3b here (done 2026-11-08). (`karman_contact_z_temp` was dropped on
+2026-10-15; this runbook no longer adds it either.)
 **Prerequisites:** printer idle (not mid-print) for every `FIRMWARE_RESTART`; both MMU gates
 loaded; one 2-colour ABS model and one single-colour model ready to slice (any small parts with
 a decent first-layer area — the maintainer picks).
@@ -153,15 +152,15 @@ variable_print_default_soak: 3
 `_USER_VARIABLES` override) with:
 
 ```
-variable_startprint_actions: "karman_nozzle_to_safe", "bed_soak", "karman_nozzle_warm", "chamber_soak", "clean", "contact_auto_calibrate", "tilt_calib", "bedmesh", "contact_z_home", "extruder_heating", "nozzle_expansion", "clean", "primeline"
+variable_startprint_actions: "karman_nozzle_to_safe", "bed_soak", "karman_nozzle_warm", "chamber_soak", "karman_hot_wipe_heat", "clean", "karman_hot_wipe_cool", "contact_auto_calibrate", "tilt_calib", "bedmesh", "contact_z_home", "extruder_heating", "nozzle_expansion", "clean", "primeline"
 ```
 
 Diff against the old list: `karman_nozzle_to_safe` added first; `extruder_preheating` replaced
-by `karman_nozzle_warm`. Everything
-else is identical and in the same order. Update the comment block above the line if it lists the
-actions.
+by `karman_nozzle_warm`. Everything else, including the PET-ooze runbook's `karman_hot_wipe_heat` /
+`karman_hot_wipe_cool` around the first `clean`, is identical and in the same order. Update the
+comment block above the line if it lists the actions.
 
-3b. Add these three macros to `overrides.cfg`, near the other START_PRINT customisations (next
+3b. Add these two macros to `overrides.cfg`, near the other START_PRINT customisations (next
 to the `_USER_VARIABLES` override is fine). Use them verbatim:
 
 ```
@@ -308,3 +307,6 @@ ssh ernst@192.168.1.240 'cd ~/printer_data/config && git status -s'
 - **2026-10-09** — Runbook written (architecture session). Design pre-resolved with the
   maintainer; nothing executed yet.
 - **2026-10-10** — Now runs after the PET-ooze runbook (see header); Steps 3a/3b get amended by its Step 9.
+- **2026-11-08** — Amended for the PET-ooze runbook (its Step 9): 3a's action list keeps
+  `karman_hot_wipe_heat` / `karman_hot_wipe_cool` around the first `clean`; 3b adds two macros
+  (no `karman_contact_z_temp`). The ooze runbook is closed, so this runbook is unblocked.

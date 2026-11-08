@@ -122,7 +122,7 @@ plate; Klippain's bucket move is a bare diagonal that does not route through
 `_KARMAN_PARK_MOVE`, so nothing else enforces a floor.
 
 ### 20a. Hot wipe around the first `clean` (`karman_hot_wipe_heat` / `karman_hot_wipe_cool`)
-Added 2026-10-15 (`docs/runbooks/nozzle-ooze-pet-hot-wipe.md`). The action list is now
+Added 2026-10-15 (`docs/runbooks/done/nozzle-ooze-pet-hot-wipe.md`). The action list is now
 `... chamber_soak, karman_hot_wipe_heat, clean, karman_hot_wipe_cool, contact_auto_calibrate ...`.
 `karman_hot_wipe_heat` reads `karman_last_nozzle_material` (saved by END_PRINT, and again by this
 action for the new print so a cancelled print still leaves a correct value), takes its first word

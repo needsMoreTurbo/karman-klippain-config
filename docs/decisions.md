@@ -25,7 +25,7 @@ Happy Hare MMU panels. The caselight `scale: 1` fix applies to any UI that sends
 Micro-Fit cable (24 V + CAN) from J33; the dedicated 24 V brick and the ERB's USB-C are retired.
 Leviathan runs USB-to-CAN bridge firmware (UUID `30fdcd6e3150`); ERB runs Katapult + Klipper for CAN
 (UUID `f2d9c8c4f555`). Kconfigs are in `~/klipper-kconfigs/` (`erb-usb`, `leviathan-canbridge`,
-`erb-katapult-can`, `erb-can`). Runbook: `docs/runbooks/nightowl-can-wiring.md`; procedure:
+`erb-katapult-can`, `erb-can`). Runbook: `docs/runbooks/done/nightowl-can-wiring.md`; procedure:
 `docs/mmu_can_bus.md`.
 **Why it was done now:** the 2026-10-11 order change (CAN ahead of HH v4, so a later fault isn't
 confounded with a v4 regression), reversing 2026-10-10.
@@ -62,13 +62,13 @@ from Klippain is preferred. **No END_PRINT filament retract**: it would shift th
 (`retract_length` 60). Note `PARK` defaults to `E=2`, so END_PRINT still does a 2 mm retract HH
 does not see.
 **Status:** mechanics verified on hardware (ABS end: cooled to 180, wiped, fan stopped itself).
-Whether the ooze is actually gone is not yet confirmed.
+Ooze fix confirmed by the maintainer 2026-11-08.
 
 ## 2026-10-11 — Order change: NightOwl CAN conversion before the HH v4 migration
 **Decision (maintainer):** do the CAN / Micro-Fit conversion now, on HH v3, during the current
 NightOwl maintenance; the v4 series follows. Reverses the timing in the 2026-10-10 entry below and
 restores the 2026-09-13 evaluation's order (hardware first on known-good software, so a later fault
-isn't confounded with a v4 regression). Runbook: `docs/runbooks/nightowl-can-wiring.md`.
+isn't confounded with a v4 regression). Runbook: `docs/runbooks/done/nightowl-can-wiring.md`.
 **Also settled (2026-10-15, while briefing it):** the board is an **ERB V2.0** (the "Rabbit Burrow"
 comment in `mcu.cfg` is a naming quirk, not a different board). **J33 is fused**: Leviathan V1.3
 KiCad puts J33 pin 1 on the global `+24V` net, which is the output of the 10 A main fuse F3 (after
