@@ -23,9 +23,6 @@ physics/melt_model_out.json
 tools/hh_extract.json
 tools/hh_extract_report.txt
 
-# HelixScreen runtime state. The rest of helixscreen/ IS tracked — it is the app config.
-helixscreen/crash_history.json
-
 # Claude Code per-machine settings; the shared config is .claude/settings.json and IS tracked.
 .claude/settings.local.json
 

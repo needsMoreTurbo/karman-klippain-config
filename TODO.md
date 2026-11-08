@@ -33,9 +33,9 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
 3. [x] **Reprint** blobifier + brush parts as needed.
 4. [x] **New brush** — installed + configured, with park on the nozzle rest.
 5. [x] **Blobifier** — reassembled, wired, working and owning purge.
-6. **HelixScreen UI migration** — in progress alongside the MMU work, not blocking it: rotation
-   and caselight bugs fixed, repo commits and settings tuning still open, KlipperScreen
-   replace-vs-coexist decision deferred. — runbook: `docs/runbooks/helixscreen-migration.md`
+6. [x] **Touchscreen UI** — HelixScreen tried 2026-08 → 2026-11 and rejected (too dense for the 4.3"
+   panel); reverted to KlipperScreen-HH (2026-11-08). — runbook:
+   `docs/runbooks/done/klipperscreen-revert.md`
 7. **Finalize NightOwl position** — ~~relocate closer to the filament-load side~~ ✓ · ~~re-run bowden cal~~ ✓ (2026-10-09) · ~~wire to printer 24 V + CAN via microfit from the Leviathan's CAN port~~ ✓ (2026-10-16 — `docs/mmu_can_bus.md`) · **still open:** swaps over CAN once the Nightwatch is back (runbook Step 9). — runbook: `docs/runbooks/nightowl-can-wiring.md`  ← *now*
 8. **Migrate Happy Hare v3 → v4** — chosen over AFC (`docs/decisions.md` 2026-10-10); runs *after*
    the CAN conversion (order changed 2026-10-11). Three runbooks, see *Happy Hare v4 migration*.
@@ -221,33 +221,6 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
   Orca preset sets PA. **PETG first** — it's the one in active use, and it doubles as the "real
   second filament" the SOP task above needs. — runbook: `docs/runbooks/pa-calibration-sop.md`
 
-## HelixScreen UI migration
-- [x] **Fix screen rotation** (was rendering upside down) — `display.rotate` in
-  `~/helixscreen/config/settings.json` + `systemctl restart helixscreen`; confirmed via journal
-  (`Watchdog] Display rotation: 180°`, process running as `helix-screen --rotate=180`).
-- [x] **Fix caselight brightness** (100% commanded from KlipperScreen/HelixScreen landed at ~1%
-  actual) — root cause: `[output_pin caselight]`'s Klippain-set `scale: 100` isn't honored by
-  either UI's generic pin/LED control, which always sends `SET_PIN VALUE` as a 0.0–1.0 fraction.
-  Fixed in `overrides.cfg` (`scale: 1` + a `LIGHT_ON`/`LIGHT_OFF` override doing the `/100`
-  itself); validated via `render_macro.py`, not yet on hardware. — runbook:
-  `docs/runbooks/helixscreen-migration.md`
-- [x] **Commit the HelixScreen-related repo changes** — done 2026-09-16 (`dfd55e9`, `0b87175`,
-  `9a24dc1`); `crash_history.json` is gitignored.
-- [x] **Verify rotation + caselight survive a real Pi reboot** — confirmed after the 2026-09-29 boot. — runbook: `docs/runbooks/helixscreen-migration.md`
-- [ ] **Stop `helixscreen/settings.json` showing as modified** — HelixScreen rewrites its heat-up
-  timing history into it, so it is permanently dirty. Gitignore it (or split prefs from runtime
-  data) — decide which.
-- [ ] **Dial in the rest of `settings.json`** (theme, sleep/dim timers, touch calibration,
-  gcode/bed-mesh render mode, per-printer macro bindings) — `settings.json.template`'s inline
-  comments are the reference. — runbook: `docs/runbooks/helixscreen-migration.md`
-- [ ] **Decide HelixScreen vs. KlipperScreen long-term** (replace or run both) — deferred until
-  HelixScreen has been used through a few real prints. Interim: both registered, KlipperScreen
-  marked legacy (`docs/decisions.md` 2026-09-16); as of 2026-10-09 its service is inactive. — runbook:
-  `docs/runbooks/helixscreen-migration.md`
-- [ ] *(optional)* **Install a second HelixScreen instance on a laptop** (Moonraker client only,
-  `192.168.1.240:7125`) for faster iteration on printer/macro settings — doesn't cover
-  display-hardware settings, which stay Pi-side. — runbook: `docs/runbooks/helixscreen-migration.md`
-
 ## Miscellaneous
 - [x] **Audit START_PRINT for no-op / hardware-stale steps** — ✅ done and **verified on hardware
   2026-08-02** (single-colour + 2-colour). First layer measurably better; no manual Z offset
@@ -332,6 +305,13 @@ decisions lives in `docs/decisions.md`; per-objective execution records are in
 `docs/runbooks/done/`._
 
 ## ✅ Recently completed
+
+### 2026-11-08 — touchscreen back on KlipperScreen-HH; HelixScreen uninstalled
+HelixScreen (2026-08 → 2026-11) closed: its completed tasks (rotation, caselight `scale: 1`, config
+commit, reboot check) are recorded in `docs/runbooks/done/helixscreen-migration.md`; its open tasks
+(dirty `settings.json`, dial in settings, replace-vs-coexist, laptop instance) were **dropped**, not
+done. KlipperScreen-HH updated, cold-boot verified; X rotation removed (panel remounted) and
+backlight restored. Why: `docs/decisions.md` 2026-11-08. — runbook: `docs/runbooks/done/klipperscreen-revert.md`
 
 ### 2026-08-02 — visualizer covers START_PRINT, and a silent under-reporting bug fixed
 - **`start_print` scenario added** to `tools/visualize_toolchange.py`. START_PRINT motion was

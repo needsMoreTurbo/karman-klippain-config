@@ -3,8 +3,7 @@
 **Objective:** Finish migrating Karman's touchscreen UI to HelixScreen — dial in its settings,
 get the app's config properly committed to this repo, verify the fixes made so far survive a
 real reboot, and decide what happens to KlipperScreen.
-**Status:** In progress. Bugs fixed and committed (Steps 1–3 done 2026-09-16); cold boot verified
-2026-10-09 (Step 4); open: settings tuning (Step 5), KlipperScreen decision.
+**Status:** Closed (superseded) — see docs/runbooks/done/klipperscreen-revert.md.
 **Date opened:** 2026-08-22
 **Prerequisites:** Pi reachable at `ernst@192.168.1.240`; HelixScreen already installed and
 running as the `helixscreen` systemd service (installed 2026-08-20, `~/helixscreen/`); Karman is
@@ -226,3 +225,4 @@ caselight fix are unrelated enough to bisect independently):
   heat-up timing history into it); gitignore or split — open in `TODO.md`. KlipperScreen service is
   currently inactive.
 - **2026-10-09** — Maintainer confirmed rotation + caselight correct after the 2026-09-29 cold boot. Step 4 ✅.
+- **2026-11-08** — Closed, superseded by `docs/runbooks/done/klipperscreen-revert.md`: maintainer chose to return to KlipperScreen-HH; HelixScreen uninstalled. Steps 5–6 abandoned.

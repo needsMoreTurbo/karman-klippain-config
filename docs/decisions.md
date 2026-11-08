@@ -1,3 +1,25 @@
+## 2026-11-08 — Back to KlipperScreen (Happy Hare edition); HelixScreen uninstalled
+**Decision:** KlipperScreen-HH (`moggieuk/KlipperScreen-Happy-Hare-Edition`, `master`) is the
+touchscreen UI. HelixScreen was removed with its own uninstaller and `helixscreen/` deleted from
+the repo (last version of its settings: `9a24dc1`). Supersedes the 2026-09-16 "both
+touchscreen UIs stay registered" entry — its removal trigger for `mmu_klipperscreen.conf` is void.
+**Why:** HelixScreen targets larger screens; on Karman's 4.3" 800×480 panel it is too dense, and
+everyday actions (e.g. setting temperatures) take more taps. It is more customizable, but the
+maintainer wants good defaults, not a UI to tune.
+**Rotation changed too — the panel was physically remounted** during the HelixScreen period, so its
+native orientation is now correct. `/etc/X11/xorg.conf.d/40-dsi-rotate.conf` (180° image + touch)
+made KlipperScreen upside down and was moved aside to `/etc/X11/40-dsi-rotate.conf.disabled`; X now
+applies **no** rotation. Don't re-run `~/pi5-display-rotate.sh` — it would reinstate the flip.
+If the panel is ever flipped back, move that file back into `xorg.conf.d/`.
+**Backlight:** systemd-backlight restores the last saved level at boot, and it had saved **12/255**
+(HelixScreen's dimmed state), so KlipperScreen came up dim. Set to 255 via
+`/sys/class/backlight/11-0045/brightness` (`ernst` is in `video`); KlipperScreen doesn't manage it.
+**Uninstaller gotchas** (if HelixScreen is ever removed elsewhere): it refuses to run from inside
+`~/helixscreen` and only runs when its filename is literally `uninstall.sh` — copy it to a temp dir
+keeping the name. It left `helixscreen-update.{path,service}` and the `moonraker.asvc` line behind.
+**If you're tempted to migrate again:** a new UI has to be usable at 4.3" out of the box and carry
+Happy Hare MMU panels. The caselight `scale: 1` fix applies to any UI that sends `SET_PIN` fractions.
+
 ## 2026-10-16 — MMU on CAN: done; brick retired; order moved ahead of HH v4
 **Decided/done:** the ERB V2.0 and the Leviathan now both run on `canbus_uuid:` (`mcu.cfg`) through one
 Micro-Fit cable (24 V + CAN) from J33; the dedicated 24 V brick and the ERB's USB-C are retired.
@@ -109,7 +131,7 @@ is a one-line change.
 **Decision:** commit the Pi's actual state — `moonraker.conf` registers update managers for **both**
 KlipperScreen and HelixScreen, and `KlipperScreen.conf` keeps its `[include mmu_klipperscreen.conf]`
 — rather than pick a winner now. Both entry points carry a `LEGACY` comment naming HelixScreen as
-the UI in use and pointing at `docs/runbooks/helixscreen-migration.md`.
+the UI in use and pointing at `docs/runbooks/done/helixscreen-migration.md`. _(Superseded 2026-11-08.)_
 **Why not commit HelixScreen alone:** the replace-vs-coexist call is still deferred (TODO.md), and a
 repo that describes only HelixScreen would misrepresent a Pi that still has KlipperScreen installed
 and updatable. A config repo that lies about the machine is worse than one that documents a
