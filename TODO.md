@@ -5,143 +5,53 @@ Updated 2026-10-09 — 🎉 **MMU is functionally complete**: cutter + Blobifier
 a 2-colour print (2026-07-24). Remaining work is tuning, safety loose ends, and relocation.
 
 ## ▶ Next up (in order)
-1. **Cut cold-start time in START_PRINT** (PET-ooze runbook done; its actions are already folded in) — soak 8 → 3, nozzle to 150
+1. **Repair `klipper-backup`** — broken since 2026-07-12 (corrupt git object in `~/config_backup`);
+   `save_variables.cfg` currently has no backup anywhere. See the task under *Miscellaneous*.
+2. **Standardise per-filament PA calibration, PETG first** — the SOP and the PETG measurement are
+   one runbook (PETG is the "real second filament" the SOP needs). — runbook:
+   `docs/runbooks/pa-calibration-sop.md`
+3. **Cut cold-start time in START_PRINT** (PET-ooze runbook done; its actions are already folded in) — soak 8 → 3, nozzle to 150
    right after the start unload, fan-assisted cooldown. — runbook:
    `docs/runbooks/start-print-cold-start-speedup.md`
-2. **Gate temperature follows the material** (and stops reverting to 245 °C on a colour edit in
+4. **Gate temperature follows the material** (and stops reverting to 245 °C on a colour edit in
    Mainsail) — small, works on v3 now. — runbook: `docs/runbooks/hh-gate-temp-by-material.md`
-3. **Happy Hare v4 migration** (3 runbooks, in order — see *Happy Hare v4 migration* below) — after
+5. **Happy Hare v4 migration** (3 runbooks, in order — see *Happy Hare v4 migration* below) — after
    the CAN conversion (order changed 2026-10-11).
-
-_Closed 2026-10-09 (maintainer): Orca prime tower confirmed OFF · PA set in the Orca filament
-presets · rear-left mesh jog clear · HelixScreen rotation + caselight survived the 09-29 cold boot ·
-Blobifier purge tuning finished · NightOwl relocated, PTFE re-plumbed, bowden re-calibrated
-(1445.9 mm, both gates) · `docs/issues.md` triaged (see its header)._
-
-_Resolved watch item: the 0.45 A extruder current is fine in practice — no skipping observed in real prints/purges. The NightOwl "skipping" was the gate-0 mirrored nightwatch latch not holding (fixed by a 99% reprint; see NightOwl internals for gate 1)._
 
 ## 🗺 High-level roadmap (priority order)
 _The big-picture sequence — reference this when re-prioritizing. Detailed tasks live in the sections below._
 
-1. [x] **Finish Happy Hare setup + calibration for NightOwl** — cutter (**back-left**), purge (**Blobifier**), wipe (**new gantry brush**). Printing again ✓
-2. [x] **Slicer configuration for Happy Hare** — toolchange g-code, purge ownership, filament slots. _(Bed exclusions still open — see Collision avoidance.)_
-3. [x] **Reprint** blobifier + brush parts as needed.
-4. [x] **New brush** — installed + configured, with park on the nozzle rest.
-5. [x] **Blobifier** — reassembled, wired, working and owning purge.
-6. [x] **Touchscreen UI** — HelixScreen tried 2026-08 → 2026-11 and rejected (too dense for the 4.3"
-   panel); reverted to KlipperScreen-HH (2026-11-08). — runbook:
-   `docs/runbooks/done/klipperscreen-revert.md`
-7. [x] **Finalize NightOwl position** — ~~relocate closer to the filament-load side~~ ✓ · ~~re-run bowden cal~~ ✓ (2026-10-09) · ~~wire to printer 24 V + CAN via microfit from the Leviathan's CAN port~~ ✓ (2026-10-16 — `docs/mmu_can_bus.md`) · ~~swaps over CAN once the Nightwatch is back~~ ✓ (2026-11-08). — runbook: `docs/runbooks/done/nightowl-can-wiring.md`
-8. **Migrate Happy Hare v3 → v4** — chosen over AFC (`docs/decisions.md` 2026-10-10); runs *after*
+1. **Migrate Happy Hare v3 → v4** — chosen over AFC (`docs/decisions.md` 2026-10-10); runs *after*
    the CAN conversion (order changed 2026-10-11). Three runbooks, see *Happy Hare v4 migration*.
-9. **Optimize the toolchange sequence:**
+2. **Optimize the toolchange sequence:**
    - retract → move to cutter → cut → fast retract while fast-moving to blobifier → load + execute blobifier → shake bin → wipe nozzle → return to print.
    - tune purge amount (accounting for the pre-cut retraction).
    - **Goal: shorter swaps** — the maintainer finds swap time "just too long" (`docs/issues.md`
      2026-08-08). Worth a `/ws-brief` when this comes up.
-10. **Spoolman integration.**
+3. **Spoolman integration.**
 
 ## Filamatrix
 ### CURRENT geometry (relocated BACK-LEFT 2026-07-17): contact **15, 341** → compressed **0, 341**, cut plane **z=15** (clears the shaker arm; enforced by `min_toolchange_z: 15`). Validated by real swaps post-rework.
-- [x] wire sensors to nitehawk (pre/post-extruder switches → PB0 / PB1)
-- [x] install toolhead · install filamatrix
-- [x] ~~install depressor front-left; contact 17,36 → compressed 0.5,36~~ **superseded** — relocated back-left 2026-07-17, geometry above
-- [x] enable cutter — `form_tip_macro: _MMU_CUT_TIP` set 2026-07-14
-- [x] first flat cut verified (at `residual 35`); residual refined to 25 by hand calc
-- [x] confirmation cut at `residual 25` ✓ (2026-07-15) — residual later corrected to **33** (measured
-  melt pool; `docs/decisions.md` 2026-08-08)
-- [x] real `T0`↔`T1` swaps with the cutter ✓; 1-color print with start/end cuts ✓ *(pre-rework)*
-- [x] cut re-validated at the back-left location ✓ (exercised by the post-rework blobifier swaps)
-  ⚠️ Cut-test workflow reminder: from loaded, `MMU_EJECT` alone (cut + unload + gate release). Never `MMU_TEST_FORM_TIP` (strands tip in PTFE + hard-stamps UNLOADED → next `MMU_EJECT` errors). Desync fix: `MMU_RECOVER`.
 - [ ] **`retract_length`** — now **60** (went 55 → 66 → 60 on 2026-08-20 to give the cut fragment
   margin; `dfc13fd`). Only revisit if cut fragments become a problem again.
 - [ ] Watch purge/flushing amounts with the cutter (cut fragment adds to what must purge)
 
-## NightOwl exterior wiring
-- [x] short term, setup dedicated 24v power brick (variable voltage unit) — **retired 2026-10-16** (ERB now powered over the CAN cable)
-- [x] print + fit the **Micro-Fit keystone adapter** (panel pass-through for the CAN cable) — done
-  (confirmed by the maintainer 2026-10-16).
-- [x] wire microfit wire internally to the printer (done 2026-10-16; swaps over CAN verified 2026-11-08) — **24 V + CAN from J33; 18 AWG power (J33 sits
-  behind the Leviathan's 10 A main fuse)** — runbook: `docs/runbooks/done/nightowl-can-wiring.md`
-  _Why it matters beyond tidiness (found 2026-09-13):_ on the dedicated brick the MMU MCU stays
-  powered when the printer is switched off, so it keeps Klipper's shutdown state across power
-  cycles — every cold start after a USB dropout fails with `Can not update MCU 'mmu' config as it
-  is shutdown` until a `FIRMWARE_RESTART` (which silently skips any board whose USB link is down).
-  It is also one more supply tied to the others through USB grounds. — `docs/decisions.md` 2026-09-12
-  _Decided 2026-09-13:_ this Micro-Fit carries CAN as well as 24 V, from the Leviathan's J33 CAN port
-  with the Leviathan as USB-to-CAN bridge (replaces the ERB's USB-C link). Wiring checks, flashing
-  and config: `docs/mmu_can_bus.md` · why: `docs/decisions.md` 2026-09-13.
-
 ## Blobifier
 ### Note: The bucket was reassembled and the optimum engagement point for the shaker arm is X = 3.0 mm and Z = 3.0 mm (SB is cradled within the shaker arm just right!)
-- [x] Assemble blobifier servo assembly - post-rebuild from new printed parts, hot glue the connect in place 
-- [x] Assemble bucket - post-rebuild from new printed parts
-- [x] Wire up servo + bucket switch to Leviathan and buck converter
-- [x] Determine shim height required and print it
-- [x] Adjust SB shaker mount for shimmed servo height (shim height 5.5mm)
-- [x] Reprint shaker arm 4 mm taller
-- [x] Print wider bed plate version of the mount (5 mm wider)
-- [x] Print shim 1 mm shorter
-- [x] Reprint the base due to damage to the existing one (cracked attachment last time, consider making the design more robust)
-- [x] Install and wire up buck converter for servo power (5V)
-- [x] Install base and bucket assembly in printer
-- [x] Test servo operation and bucket switch operation
-- [x] Install servo arm and sliding tray
-- [x] Test servo with tray attached
-- [x] Update blobifier config in klipper / happy-hare
-- [x] Test blobifier operation with tray attached
 - [ ] **Wire dedicated 2nd ground to the Leviathan** — bucket-switch ground currently returns through the buck converter (works but noise-susceptible). Blocked on hardware: the base only fits a 4-pin JST, so a 5th conductor needs a base mod + reprint. Do together with a base revision (also: make the cracked attachment more robust).
 
 
 ## Nozzle brush
 ### As configured (authoritative — these are the live values): brush **x53–88** at **y_max**, centre 70.5 (`variable_brush_xyz: 70.5, 359, 1`); nozzle rest **x=45, y=359** (`park_pause` / `park_complete` / `SWAP`).
 ### Gantry-mounted ⇒ Z tracks the toolhead, so only the X slide seats/unseats the nozzle; approach y_max via the clear lanes (15<x<40 or x>95), never head-on.
-- [x] Fill with RTV and let cure
-- [x] Assemble unit
-- [x] Install in printer
-- [x] Configure brush position in klipper / happy-hare (position in notes above)
-- [x] Configure nozzle rest position in klipper / happy-hare (position in notes above)
-- [x] Test brush operation
-- [x] Test nozzle rest operation
-- [x] Reprint vertical mount (no change, broke the first one)
 
 ## NightOwl internals
-- [x] connect endstops and test them in klipper (all 7 switches)
-- [x] connect extruders and test them in klipper
-- [x] plumb the ptfe lines (gate → extruder) — needed before bowden calibration / full loads
-- [x] replace mirrored latch with althernative versions that I printed (existing version is coming unlatched and is not reliable) — gate 0 fixed with a **99%-scale** reprint
 - [ ] *(optional)* print + replace the **gate-1** latch too — no failures yet, but measurements say ~**99.5% scale**; do preemptively if it starts slipping
-- [x] properly adjust the extruder idler tension (didn't actually follow the instructions, just tightened it down some arbritray amount)
-- [x] relocate NightOwl to its permanent home (closer to the filament-load side) — done 2026-10-09
-- [x] re-plumb the ptfe and recalibrate the bowden lengths (MMU_CALIBRATE_BOWDEN) — done 2026-10-09, 1445.9 mm both gates
 
 ## Filament sensor (BTT SFS v2) — REMOVED
-- [x] ~~create extension cable / wire to Leviathan (PC0 runout, PC1 motion)~~
-- [x] ~~configure in klipper as `[mmu_encoder]` + `[filament_switch_sensor]`~~
 - **Removed 2026-07-14** — drag corrupted the sync-feedback signal. Config commented out (not deleted); PC0/PC1 free. Re-add later **upstream** of the sync-feedback sensor after MMU relocation.
 
-## Klipper / config changes pending (from the rewire)
-- [x] **X endstop relocation:** override `[stepper_x] endstop_pin: ^toolhead:PROBE_INPUT` (PC15 on Nitehawk); free PC1 for SFS motion — must be one atomic change with the SFS motion sensor
-- [x] **Recalibrate `position_endstop`** for X (new toolhead mount) and Y (new location, still PC2) — home carefully, watch homing direction (crash risk on X)
-- [x] **SFS v2 config:** `[filament_switch_sensor]` on PC0 + `[filament_motion_sensor]` on PC1; decide role and gate it OFF during MMU moves to avoid false runouts (Happy Hare interaction)
-- [x] **Verify PC15 (Nitehawk HV probe port)** works as a mechanical endstop via `QUERY_ENDSTOPS`
-- [x] **Pre/post-extruder sensors in HH:** `extruder_switch_pin: ^toolhead:MCU_ENDSTOP_X` (PB0), `toolhead_switch_pin: ^toolhead:MCU_ENDSTOP_Y` (PB1); check polarity via `MMU_SENSORS`
-- [x] **Enable `extruder_homing_endstop: extruder`** now that the extruder-entry sensor exists (unblocks auto bowden + toolhead calibration)
-
 ## Happy Hare — calibration & tuning
-- [x] Gear rotation distance calibration (both gates); loads/ejects verified
-- [x] Bowden length calibration (`MMU_CALIBRATE_BOWDEN`) — re-done after relocation 2026-10-09 (1445.9 mm)
-- [x] **Toolhead calibration** — done clean+dirty; auto-cal unreliable (0.45 A extruder slip) so measured manually. Values in `mmu_parameters.cfg` 238–240 + `residual 5`.
-- [x] **Test tool changes** (`T0` / `T1`) — both gates swap correctly with tip forming.
-- [x] **FlowGuard** — active via the **PSF** proportional sync-feedback sensor (`flowguard_enabled: 1`); encoder path (`flowguard_encoder_mode`) stays 0 (encoderless). `flowguard_max_relief` 40 → **8** (2026-08-20, `3c0b0e7` — 40 missed a real clog).
-- [x] **Switch purging to HH-owned via BLOBIFIER** — *supersedes the old "Option B / `_MMU_PURGE` @ 0,358" plan*: Blobifier positions itself, so `park_toolchange` stays `-999,-999` (see `docs/decisions.md`).
-  - [x] `purge_macro: BLOBIFIER` + `force_purge_standalone: 1` in `mmu_parameters.cfg`
-  - [x] `variable_user_post_form_tip_extension: "BLOBIFIER_PARK"` + `restore_xy_pos: "next"`; staged `0,358` park comment retired
-  - [x] OrcaSlicer wipe tower **OFF** — confirmed 2026-10-09
-  - [x] Purge matrix fed via `MMU_START_SETUP ... PURGE_VOLUMES=!purge_volumes!` (verified in the machine start g-code)
-- [x] **Filament cutting (Filamatrix)** — ENABLED; geometry now **back-left**: pin `15,341` → compressed `0,341` (X-axis cut) at **z15**, `blade_pos 69`, `retract_length 60`, `residual 33`, `form_tip_macro: _MMU_CUT_TIP`. Flat cut + real swaps verified.
-- [x] **Nozzle wipe** — post-toolchange wipe runs on the **new gantry brush** (x53–88, `brush_top: None`) via `BLOBIFIER_CLEAN`; tested.
-- [x] **Blobifier configuration** — servo, bucket switch, tray, shake all configured and tested.
 - [ ] Filament change tuning (retraction amounts, blob tuning, purge volumes under real prints)
 - [ ] **Gate temperature from the material; stop the revert to 245 °C** — Mainsail's HH panel sends
   one field per `MMU_GATE_MAP` call, and HH (v3 *and* v4) defaults a missing `TEMP` to
@@ -157,13 +67,8 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
   - ⚠️ **FRONT-LEFT KEEP-OUT, PERMANENT (~x<10, y<17, all Z):** the Filamatrix **cutter arm strikes the front-left XY idler** — toolhead geometry, applies to every move.
   - ⚠️ **BACK-LEFT ZONE (x<~20, y>~335, below z15):** blobifier structures + relocated depressor. Enter only via the managed macros; manual jogs at low Z stay out.
   - ⚠️ **y_max FEATURE ROW** (tray x~2–17, shaker x4, rest x45, brush x53–88, all gantry/frame at y_max): approach in **+Y only through the clear lanes 15<x<40 or x>95**, then slide in X. `_KARMAN_PARK_MOVE` + retargeted CLEAN_NOZZLE handle this for parks/wipes.
-  - [x] QGL (max y 275) + Y-homing (x≈345) verified clear from config
-  - [x] Beacon mesh scan U-turns capped (`mesh_overscan: 5`) so they stay out of the front-left keep-out (`296d24b`)
-  - [x] **Bed-mesh rear-left jog check** (done 2026-10-09) — jog nozzle to (20, 330, z3) then (10, 330, z3) and eyeball clearance to the depressor mount + blobifier base (mesh probing rows can reach nozzle y≈332 at low Z)
   - [ ] **Slicer bed exclusion** — notch the bed polygon: front-left idler corner + back-left blobifier/depressor zone
   - [ ] **Vet remaining macro positions** (prime line, Beacon contact, purge/clean during START_PRINT) against the new zones
-- [x] 🎯 **First multi-material print** — DONE 2026-07-14 (tip forming, Option A slicer purge; 7 toolchanges clean)
-- [x] 🎯 **Multi-material print WITH cutter + Blobifier** — DONE 2026-07-24. Validates the full chain: cut at z15 → unload → load → Blobifier purge → gantry-brush wipe → resume. Runbook: `docs/runbooks/done/blobifier-bringup.md`
 
 ## Happy Hare v4 migration
 _Decided 2026-10-10 (`docs/decisions.md`): v4, not AFC; runs after the CAN conversion (order changed
@@ -181,27 +86,10 @@ _Decided 2026-10-10 (`docs/decisions.md`): v4, not AFC; runs after the CAN conve
 
 ## Slicer configuration (Happy Hare)
 _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.md` (the authoritative record)._
-- [x] Slicer tip-forming / ramming disabled; SEMM + extruder-tab toolchange retraction zeroed
-- [x] MMU toolchange g-code (`T[next_extruder]`), start/end/layer g-code (Klippain-wrapped, no `MMU_END`)
-- [x] Wipe/prime tower ON (Option A — slicer owns purge); flushing-volume multiplier guidance recorded
-- [x] Per-gate filament slots + colors/temps; chamber temp **0** in MMU filament profiles (chamber-soak trap)
-- [x] Slice + run a 2-color test model end-to-end 🎉
 - [ ] Bed-shape exclusions (see Collision avoidance) — front-left keep-out not yet notched into the bed polygon
 
 ## Pressure advance
 
-- [x] ✅ **Install BDPressure E sensor for automatic PA calibration — DONE 2026-08-14.**
-  PandaPi3D strain-gauge sensor at the groove mount, **connected by USB** (the original I2C plan
-  was superseded — I2C structurally cannot carry the raw ADC stream, and an unanswered NAK shut
-  the toolhead MCU down on every `G28`). **PA mode only — Beacon stays the probe.**
-  The first unit was faulty (strain-gauge P+ lead open); the replacement works. Measured ABS PA is
-  **0.032**, which replaced the inherited 0.0480 in `variables.cfg`. Two vendor bugs found and
-  patched along the way (an event-length limit that discarded 78% of steps at 14.4 mm³/s, and an
-  answer-selection routine that returned 0.076 for a sweep whose data crossed at 0.031).
-  Physics model, measurement limits and calibration protocol: `docs/pa_physics.md`. Every sweep
-  result: `physics/pa_sweeps.json`. Orca adaptive matrix: `physics/pa_law.json`.
-  Open follow-ups are listed at the end of the runbook — none blocking.
-  — runbook: `docs/runbooks/done/bdpressure-pa-sensor.md`
 - [ ] **Standardise per-filament PA calibration (constant + adaptive)** — turn the one-off ABS
   characterisation into a repeatable procedure: a two-corner gate that decides whether adaptive PA
   earns its keep for a given filament, a constant PA at the outer-wall operating point if it
@@ -217,23 +105,25 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
   second filament" the SOP task above needs. — runbook: `docs/runbooks/pa-calibration-sop.md`
 
 ## Miscellaneous
-- [ ] **Finish the hazard survey** — the CLAUDE.md hazard register is `partial` (keep-out geometry +
-  MMU/flashing traps only). Walk the work-system hazard checklist (heat left on, chamber/ABS fumes,
-  bed-heater runaway limits, CAN-bus loss mid-print, filament stranded in the bowden…) and set
-  `hazard_register` in `.claude/work-system.json` to `surveyed`.
-- [x] **Audit START_PRINT for no-op / hardware-stale steps** — ✅ done and **verified on hardware
-  2026-08-02** (single-colour + 2-colour). First layer measurably better; no manual Z offset
-  needed. — runbook: `docs/runbooks/done/start-print-audit.md`
-- [x] **Fix: nozzle-expansion offset applied zero on every print but the first after a restart**
-  — a stale `nozzle_expansion_applied_offset` cancelled the new offset exactly, and the console
-  message reported the *target* rather than the delta actually issued, which hid it. Both fixed
-  in `thermal_expansion.cfg`; see `docs/decisions.md` 2026-08-02.
-- [x] **PET ooze survives the START_PRINT nozzle wipe** — ✅ done 2026-11-08 (maintainer) — after PET prints the nozzle oozes while
-  cooling on the rest; at the next start the hardened ooze is still attached and 150 °C is too cold
-  for the brush to remove it. Decided 2026-10-10, amended 2026-10-15/16: START_PRINT hot-wipes on the rest at
-  a per-material temp (PET 230, PC/PA 200, ABS/ASA 180) keyed on the last nozzle material (saved by END_PRINT);
-  END_PRINT cools to that temp, wipes (`BLOBIFIER_CLEAN`), keeps fan-cooling; **no END_PRINT retract** (cut-margin
-  coupling). — runbook: `docs/runbooks/done/nozzle-ooze-pet-hot-wipe.md`
+- [ ] **Repair `klipper-backup`** — broken since **2026-07-12**: `~/config_backup` has an empty
+  (corrupt) git object (`56c7c8e…`), so every 4-hourly cron run since then has failed silently.
+  `save_variables.cfg` is gitignored here, so its only copy is on the SD card. Fix the local
+  repo (or re-clone from the remote), confirm a new commit reaches GitHub, then do one test restore.
+  _Found by the hazard survey, 2026-11-13._
+- [ ] **Forgotten preheat never times out** (maintainer-observed) — `[idle_timeout]` in
+  `overrides.cfg` (1800 s → `TURN_OFF_HEATERS`) should catch it, so something stops it firing.
+  Debug session: reproduce with a preheat and check klippy.log for `Idle timeout reached`.
+- [ ] **MMU load/swap outside a print can run at ~200 °C** — happens when the hotend isn't
+  preheated or the "wrong" command is used. Find which commands/paths heat to what (HH
+  `default_extruder_temp` is already 245), and make bench loads heat to the gate's material
+  temperature. Probably overlaps the gate-temperature runbook (`hh-gate-temp-by-material.md`).
+- [ ] **Measure umbilical/PTFE clearance near Z max** — the last open hazard-survey item. Once
+  measured, record the safe Z ceiling in the CLAUDE.md hazard register and set
+  `hazard_register` to `surveyed` in `.claude/work-system.json`.
+- [ ] **KlipperScreen: one-tap chamber/toolhead light toggle** — no easy button today.
+- [ ] **Tidy the Mainsail macro list** — hide macros you'll never run from the UI (Mainsail
+  macro groups/visibility, or `_`-prefixed wrappers in `overrides.cfg`), without renaming
+  anything Klippain or HH calls.
 - [ ] **Cut cold-start time in START_PRINT** (maintainer, `docs/issues.md` 2026-08-08: "just too
   long"). Traced 2026-10-09 — on a multi-tool print the sequence fights itself:
   1. `_KLIPPAIN_MMU_INIT` runs `MMU_UNLOAD` **before** any `startprint_actions` (always, when
@@ -249,13 +139,6 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
   _Decided 2026-10-09:_ soak **3** min; nozzle target 150 (no wait) right after the unload; the
   calibrate touch may happen at ≤ 180 °C (fan-assisted), the Z-defining touch runs at 150 via the guard exit —
   runbook: `docs/runbooks/start-print-cold-start-speedup.md`
-- [x] **END_PRINT `retract_filament` is now a complete no-op** — with `mmu_unload_on_end_print:
-  False` the MMU branch is gated off and the plain-retract `elif` is unreachable
-  (`klippain_mmu_enabled` is True). Decide whether END_PRINT should retract at all now that
-  filament stays loaded in the UHF melt zone through cooldown. Same kind of audit as START_PRINT.
-  _Being decided by the PET-ooze runbook (2026-10-10): no END_PRINT retract — it would silently
-  shift the next cut._ ✅ Closed 2026-11-08 with that runbook — no END_PRINT retract
-  (`docs/decisions.md` 2026-10-16).
 - [ ] **Reconsider "MMU profiles must send CHAMBER=0"** (`docs/decisions.md` 2026-07-14) — that rule
   was a workaround for `chamber_temp_tolerance: 0.0`, which is now 2.0. Keep setpoints ≤ ~55 °C.
 - [ ] **Fuzz the Beacon contact point** so the two nozzle touches per print stop wearing one spot on
@@ -265,17 +148,15 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
   `G28 Z METHOD=CONTACT`, so the hooks have to call `BEACON_AUTO_CALIBRATE` at a fuzzed point
   instead. Radius is bounded by `bed_mesh zero_reference_position` (also 175,175), **not** by
   clearance: measured worst mesh deviation over the chosen ±10 mm patch is 0.018 mm.
-- [x] **Purge lengths for the UHF melt zone** — ✅ finished 2026-10-09 — runbook: `docs/runbooks/done/blobifier-purge-tuning.md`.
-  Steps 1-4 done: Blobifier floor raised to **140 mm** (`purge_length_minimum`, `docs/decisions.md`
-  2026-08-08 — makes the slicer matrix vestigial), residual corrected 25 → 33, jam regression closed
-  2026-09-14, PETG blob slide fixed with `z_raise 8` / `eject_hop 3` / `pressure_release_time 2000`.
-  Then: eject values re-checked on ABS, 2-colour acceptance print, ooze and cold-start FlowGuard
-  trips closed out (maintainer, 2026-10-09).
-  The original 2026-08-02 under-purge diagnosis lives in the runbook (its numbers are superseded).
+  _2026-11-13 (maintainer):_ the same-spot touches have already **dented the smooth side of the
+  gold flex plate**, and first layers often come out too close, needing someone to watch the
+  first layer. Hypothesis: Z=0 is set in the dent. Worth checking during this runbook (compare
+  the first layer with the contact point moved off the dent), and consider replacing or flipping
+  the plate.
 
 ## Toolchange optimization (later)
 - [ ] Implement the fast sequence: retract → cutter → cut → fast-retract while moving to blobifier → blobifier purge → shake bin → wipe → resume
-- [ ] ~~Tune purge volume~~ — superseded by the purge-length task under **Miscellaneous**
+- [ ] ~~Tune purge volume~~ — superseded by the purge-length task (done 2026-10-09; see History)
 - [ ] Tune **PSF** sync-feedback behaviour under real prints (`flowguard_max_relief` now 8 — watch for false trips)
 
 ## Spoolman integration (later)
@@ -304,6 +185,175 @@ decisions lives in `docs/decisions.md`; per-objective execution records are in
 `docs/runbooks/done/`._
 
 ## ✅ Recently completed
+
+### 2026-11-13 — checklist sweep: completed tasks moved out of the active sections
+Moved verbatim from above the divider (`/ws-check` 2026-11-13). Each item keeps its own completion
+date and evidence where it had one; grouped by the section it came from.
+
+#### ▶ Next up (closed notes)
+_Closed 2026-10-09 (maintainer): Orca prime tower confirmed OFF · PA set in the Orca filament
+presets · rear-left mesh jog clear · HelixScreen rotation + caselight survived the 09-29 cold boot ·
+Blobifier purge tuning finished · NightOwl relocated, PTFE re-plumbed, bowden re-calibrated
+(1445.9 mm, both gates) · `docs/issues.md` triaged (see its header)._
+
+_Resolved watch item: the 0.45 A extruder current is fine in practice — no skipping observed in real prints/purges. The NightOwl "skipping" was the gate-0 mirrored nightwatch latch not holding (fixed by a 99% reprint; see NightOwl internals for gate 1)._
+
+#### 🗺 Roadmap (completed items)
+- [x] **Finish Happy Hare setup + calibration for NightOwl** — cutter (**back-left**), purge (**Blobifier**), wipe (**new gantry brush**). Printing again ✓
+- [x] **Slicer configuration for Happy Hare** — toolchange g-code, purge ownership, filament slots. _(Bed exclusions still open — see Collision avoidance.)_
+- [x] **Reprint** blobifier + brush parts as needed.
+- [x] **New brush** — installed + configured, with park on the nozzle rest.
+- [x] **Blobifier** — reassembled, wired, working and owning purge.
+- [x] **Touchscreen UI** — HelixScreen tried 2026-08 → 2026-11 and rejected (too dense for the 4.3"
+  panel); reverted to KlipperScreen-HH (2026-11-08). — runbook:
+  `docs/runbooks/done/klipperscreen-revert.md`
+- [x] **Finalize NightOwl position** — ~~relocate closer to the filament-load side~~ ✓ · ~~re-run bowden cal~~ ✓ (2026-10-09) · ~~wire to printer 24 V + CAN via microfit from the Leviathan's CAN port~~ ✓ (2026-10-16 — `docs/mmu_can_bus.md`) · ~~swaps over CAN once the Nightwatch is back~~ ✓ (2026-11-08). — runbook: `docs/runbooks/done/nightowl-can-wiring.md`
+
+#### Filamatrix
+- [x] wire sensors to nitehawk (pre/post-extruder switches → PB0 / PB1)
+- [x] install toolhead · install filamatrix
+- [x] ~~install depressor front-left; contact 17,36 → compressed 0.5,36~~ **superseded** — relocated back-left 2026-07-17, geometry above
+- [x] enable cutter — `form_tip_macro: _MMU_CUT_TIP` set 2026-07-14
+- [x] first flat cut verified (at `residual 35`); residual refined to 25 by hand calc
+- [x] confirmation cut at `residual 25` ✓ (2026-07-15) — residual later corrected to **33** (measured
+  melt pool; `docs/decisions.md` 2026-08-08)
+- [x] real `T0`↔`T1` swaps with the cutter ✓; 1-color print with start/end cuts ✓ *(pre-rework)*
+- [x] cut re-validated at the back-left location ✓ (exercised by the post-rework blobifier swaps)
+  ⚠️ Cut-test workflow reminder: from loaded, `MMU_EJECT` alone (cut + unload + gate release). Never `MMU_TEST_FORM_TIP` (strands tip in PTFE + hard-stamps UNLOADED → next `MMU_EJECT` errors). Desync fix: `MMU_RECOVER`.
+
+#### NightOwl exterior wiring
+- [x] short term, setup dedicated 24v power brick (variable voltage unit) — **retired 2026-10-16** (ERB now powered over the CAN cable)
+- [x] print + fit the **Micro-Fit keystone adapter** (panel pass-through for the CAN cable) — done
+  (confirmed by the maintainer 2026-10-16).
+- [x] wire microfit wire internally to the printer (done 2026-10-16; swaps over CAN verified 2026-11-08) — **24 V + CAN from J33; 18 AWG power (J33 sits
+  behind the Leviathan's 10 A main fuse)** — runbook: `docs/runbooks/done/nightowl-can-wiring.md`
+  _Why it matters beyond tidiness (found 2026-09-13):_ on the dedicated brick the MMU MCU stays
+  powered when the printer is switched off, so it keeps Klipper's shutdown state across power
+  cycles — every cold start after a USB dropout fails with `Can not update MCU 'mmu' config as it
+  is shutdown` until a `FIRMWARE_RESTART` (which silently skips any board whose USB link is down).
+  It is also one more supply tied to the others through USB grounds. — `docs/decisions.md` 2026-09-12
+  _Decided 2026-09-13:_ this Micro-Fit carries CAN as well as 24 V, from the Leviathan's J33 CAN port
+  with the Leviathan as USB-to-CAN bridge (replaces the ERB's USB-C link). Wiring checks, flashing
+  and config: `docs/mmu_can_bus.md` · why: `docs/decisions.md` 2026-09-13.
+
+#### Blobifier
+- [x] Assemble blobifier servo assembly - post-rebuild from new printed parts, hot glue the connect in place 
+- [x] Assemble bucket - post-rebuild from new printed parts
+- [x] Wire up servo + bucket switch to Leviathan and buck converter
+- [x] Determine shim height required and print it
+- [x] Adjust SB shaker mount for shimmed servo height (shim height 5.5mm)
+- [x] Reprint shaker arm 4 mm taller
+- [x] Print wider bed plate version of the mount (5 mm wider)
+- [x] Print shim 1 mm shorter
+- [x] Reprint the base due to damage to the existing one (cracked attachment last time, consider making the design more robust)
+- [x] Install and wire up buck converter for servo power (5V)
+- [x] Install base and bucket assembly in printer
+- [x] Test servo operation and bucket switch operation
+- [x] Install servo arm and sliding tray
+- [x] Test servo with tray attached
+- [x] Update blobifier config in klipper / happy-hare
+- [x] Test blobifier operation with tray attached
+
+#### Nozzle brush
+- [x] Fill with RTV and let cure
+- [x] Assemble unit
+- [x] Install in printer
+- [x] Configure brush position in klipper / happy-hare (position in notes above)
+- [x] Configure nozzle rest position in klipper / happy-hare (position in notes above)
+- [x] Test brush operation
+- [x] Test nozzle rest operation
+- [x] Reprint vertical mount (no change, broke the first one)
+
+#### NightOwl internals
+- [x] connect endstops and test them in klipper (all 7 switches)
+- [x] connect extruders and test them in klipper
+- [x] plumb the ptfe lines (gate → extruder) — needed before bowden calibration / full loads
+- [x] replace mirrored latch with althernative versions that I printed (existing version is coming unlatched and is not reliable) — gate 0 fixed with a **99%-scale** reprint
+- [x] properly adjust the extruder idler tension (didn't actually follow the instructions, just tightened it down some arbritray amount)
+- [x] relocate NightOwl to its permanent home (closer to the filament-load side) — done 2026-10-09
+- [x] re-plumb the ptfe and recalibrate the bowden lengths (MMU_CALIBRATE_BOWDEN) — done 2026-10-09, 1445.9 mm both gates
+
+#### Filament sensor (BTT SFS v2) — REMOVED
+- [x] ~~create extension cable / wire to Leviathan (PC0 runout, PC1 motion)~~
+- [x] ~~configure in klipper as `[mmu_encoder]` + `[filament_switch_sensor]`~~
+
+#### Klipper / config changes pending (from the rewire)
+- [x] **X endstop relocation:** override `[stepper_x] endstop_pin: ^toolhead:PROBE_INPUT` (PC15 on Nitehawk); free PC1 for SFS motion — must be one atomic change with the SFS motion sensor
+- [x] **Recalibrate `position_endstop`** for X (new toolhead mount) and Y (new location, still PC2) — home carefully, watch homing direction (crash risk on X)
+- [x] **SFS v2 config:** `[filament_switch_sensor]` on PC0 + `[filament_motion_sensor]` on PC1; decide role and gate it OFF during MMU moves to avoid false runouts (Happy Hare interaction)
+- [x] **Verify PC15 (Nitehawk HV probe port)** works as a mechanical endstop via `QUERY_ENDSTOPS`
+- [x] **Pre/post-extruder sensors in HH:** `extruder_switch_pin: ^toolhead:MCU_ENDSTOP_X` (PB0), `toolhead_switch_pin: ^toolhead:MCU_ENDSTOP_Y` (PB1); check polarity via `MMU_SENSORS`
+- [x] **Enable `extruder_homing_endstop: extruder`** now that the extruder-entry sensor exists (unblocks auto bowden + toolhead calibration)
+
+#### Happy Hare — calibration & tuning
+- [x] Gear rotation distance calibration (both gates); loads/ejects verified
+- [x] Bowden length calibration (`MMU_CALIBRATE_BOWDEN`) — re-done after relocation 2026-10-09 (1445.9 mm)
+- [x] **Toolhead calibration** — done clean+dirty; auto-cal unreliable (0.45 A extruder slip) so measured manually. Values in `mmu_parameters.cfg` 238–240 + `residual 5`.
+- [x] **Test tool changes** (`T0` / `T1`) — both gates swap correctly with tip forming.
+- [x] **FlowGuard** — active via the **PSF** proportional sync-feedback sensor (`flowguard_enabled: 1`); encoder path (`flowguard_encoder_mode`) stays 0 (encoderless). `flowguard_max_relief` 40 → **8** (2026-08-20, `3c0b0e7` — 40 missed a real clog).
+- [x] **Switch purging to HH-owned via BLOBIFIER** — *supersedes the old "Option B / `_MMU_PURGE` @ 0,358" plan*: Blobifier positions itself, so `park_toolchange` stays `-999,-999` (see `docs/decisions.md`).
+  - [x] `purge_macro: BLOBIFIER` + `force_purge_standalone: 1` in `mmu_parameters.cfg`
+  - [x] `variable_user_post_form_tip_extension: "BLOBIFIER_PARK"` + `restore_xy_pos: "next"`; staged `0,358` park comment retired
+  - [x] OrcaSlicer wipe tower **OFF** — confirmed 2026-10-09
+  - [x] Purge matrix fed via `MMU_START_SETUP ... PURGE_VOLUMES=!purge_volumes!` (verified in the machine start g-code)
+- [x] **Filament cutting (Filamatrix)** — ENABLED; geometry now **back-left**: pin `15,341` → compressed `0,341` (X-axis cut) at **z15**, `blade_pos 69`, `retract_length 60`, `residual 33`, `form_tip_macro: _MMU_CUT_TIP`. Flat cut + real swaps verified.
+- [x] **Nozzle wipe** — post-toolchange wipe runs on the **new gantry brush** (x53–88, `brush_top: None`) via `BLOBIFIER_CLEAN`; tested.
+- [x] **Blobifier configuration** — servo, bucket switch, tray, shake all configured and tested.
+- [x] QGL (max y 275) + Y-homing (x≈345) verified clear from config
+- [x] Beacon mesh scan U-turns capped (`mesh_overscan: 5`) so they stay out of the front-left keep-out (`296d24b`)
+- [x] **Bed-mesh rear-left jog check** (done 2026-10-09) — jog nozzle to (20, 330, z3) then (10, 330, z3) and eyeball clearance to the depressor mount + blobifier base (mesh probing rows can reach nozzle y≈332 at low Z)
+- [x] 🎯 **First multi-material print** — DONE 2026-07-14 (tip forming, Option A slicer purge; 7 toolchanges clean)
+- [x] 🎯 **Multi-material print WITH cutter + Blobifier** — DONE 2026-07-24. Validates the full chain: cut at z15 → unload → load → Blobifier purge → gantry-brush wipe → resume. Runbook: `docs/runbooks/done/blobifier-bringup.md`
+
+#### Slicer configuration (Happy Hare)
+- [x] Slicer tip-forming / ramming disabled; SEMM + extruder-tab toolchange retraction zeroed
+- [x] MMU toolchange g-code (`T[next_extruder]`), start/end/layer g-code (Klippain-wrapped, no `MMU_END`)
+- [x] Wipe/prime tower ON (Option A — slicer owns purge); flushing-volume multiplier guidance recorded
+- [x] Per-gate filament slots + colors/temps; chamber temp **0** in MMU filament profiles (chamber-soak trap)
+- [x] Slice + run a 2-color test model end-to-end 🎉
+
+#### Pressure advance
+- [x] ✅ **Install BDPressure E sensor for automatic PA calibration — DONE 2026-08-14.**
+  PandaPi3D strain-gauge sensor at the groove mount, **connected by USB** (the original I2C plan
+  was superseded — I2C structurally cannot carry the raw ADC stream, and an unanswered NAK shut
+  the toolhead MCU down on every `G28`). **PA mode only — Beacon stays the probe.**
+  The first unit was faulty (strain-gauge P+ lead open); the replacement works. Measured ABS PA is
+  **0.032**, which replaced the inherited 0.0480 in `variables.cfg`. Two vendor bugs found and
+  patched along the way (an event-length limit that discarded 78% of steps at 14.4 mm³/s, and an
+  answer-selection routine that returned 0.076 for a sweep whose data crossed at 0.031).
+  Physics model, measurement limits and calibration protocol: `docs/pa_physics.md`. Every sweep
+  result: `physics/pa_sweeps.json`. Orca adaptive matrix: `physics/pa_law.json`.
+  Open follow-ups are listed at the end of the runbook — none blocking.
+  — runbook: `docs/runbooks/done/bdpressure-pa-sensor.md`
+
+#### Miscellaneous
+- [x] **Audit START_PRINT for no-op / hardware-stale steps** — ✅ done and **verified on hardware
+  2026-08-02** (single-colour + 2-colour). First layer measurably better; no manual Z offset
+  needed. — runbook: `docs/runbooks/done/start-print-audit.md`
+- [x] **Fix: nozzle-expansion offset applied zero on every print but the first after a restart**
+  — a stale `nozzle_expansion_applied_offset` cancelled the new offset exactly, and the console
+  message reported the *target* rather than the delta actually issued, which hid it. Both fixed
+  in `thermal_expansion.cfg`; see `docs/decisions.md` 2026-08-02.
+- [x] **PET ooze survives the START_PRINT nozzle wipe** — ✅ done 2026-11-08 (maintainer) — after PET prints the nozzle oozes while
+  cooling on the rest; at the next start the hardened ooze is still attached and 150 °C is too cold
+  for the brush to remove it. Decided 2026-10-10, amended 2026-10-15/16: START_PRINT hot-wipes on the rest at
+  a per-material temp (PET 230, PC/PA 200, ABS/ASA 180) keyed on the last nozzle material (saved by END_PRINT);
+  END_PRINT cools to that temp, wipes (`BLOBIFIER_CLEAN`), keeps fan-cooling; **no END_PRINT retract** (cut-margin
+  coupling). — runbook: `docs/runbooks/done/nozzle-ooze-pet-hot-wipe.md`
+- [x] **END_PRINT `retract_filament` is now a complete no-op** — with `mmu_unload_on_end_print:
+  False` the MMU branch is gated off and the plain-retract `elif` is unreachable
+  (`klippain_mmu_enabled` is True). Decide whether END_PRINT should retract at all now that
+  filament stays loaded in the UHF melt zone through cooldown. Same kind of audit as START_PRINT.
+  _Being decided by the PET-ooze runbook (2026-10-10): no END_PRINT retract — it would silently
+  shift the next cut._ ✅ Closed 2026-11-08 with that runbook — no END_PRINT retract
+  (`docs/decisions.md` 2026-10-16).
+- [x] **Purge lengths for the UHF melt zone** — ✅ finished 2026-10-09 — runbook: `docs/runbooks/done/blobifier-purge-tuning.md`.
+  Steps 1-4 done: Blobifier floor raised to **140 mm** (`purge_length_minimum`, `docs/decisions.md`
+  2026-08-08 — makes the slicer matrix vestigial), residual corrected 25 → 33, jam regression closed
+  2026-09-14, PETG blob slide fixed with `z_raise 8` / `eject_hop 3` / `pressure_release_time 2000`.
+  Then: eject values re-checked on ABS, 2-colour acceptance print, ooze and cold-start FlowGuard
+  trips closed out (maintainer, 2026-10-09).
+  The original 2026-08-02 under-purge diagnosis lives in the runbook (its numbers are superseded).
 
 ### 2026-11-08 — PET ooze fix confirmed
 Per-material hot wipe at START_PRINT (PET 230, PC/PA 200, ABS/ASA 180) and cool-then-wipe at

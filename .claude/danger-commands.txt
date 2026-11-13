@@ -2,3 +2,4 @@
 # Enforceable subset of CLAUDE.md's hazard register.
 gcode/script.*MMU_TEST_FORM_TIP | Strands the tip in the ~1.45 m bowden and stamps state UNLOADED (CLAUDE.md). Test cuts with T0/T1/MMU_EJECT.
 gcode/script.*MMU_TEST_MOVE | Never hand-crank filament on Karman — fix desync with MMU_RECOVER after confirming gates are physically clear.
+bd_pressure.*git (pull|reset|checkout|merge|rebase) | ~/bd_pressure carries three local patches an update silently reverts (CLAUDE.md, docs/pa_physics.md Appendix A). The maintainer updates it by hand, if ever.

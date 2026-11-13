@@ -28,8 +28,8 @@ readlink -e config >/dev/null 2>&1 && echo "MOUNT/on-Pi" || echo "WORKSTATION CL
 
 ## ⚠️ Hazard register
 Klipper has **no obstacle model** and nothing stops a bad command, so this list is the only
-interlock. Survey status: **partial**. The keep-out geometry and the MMU/flashing traps are
-recorded; a full hazard walk is still open in `TODO.md`.
+interlock. Survey status: **partial**. Walked with the maintainer on 2026-11-13; the only open item
+is measuring the umbilical/PTFE clearance near Z max (`TODO.md`).
 
 ### Physical keep-out zones (you enforce these)
 Any change to a park position, brush/purge coordinate, macro travel, or slicer bed shape must
@@ -43,6 +43,33 @@ after motion-file edits.
   through a **clear lane (15<x<40, or x>95)**, then slid in X. Never approach a feature head-on.
   `_KARMAN_PARK_MOVE` (overrides.cfg) enforces this and is wired in via `user_park_move_macro`.
   **Always-on** near y_max.
+- **Umbilical + PTFE above the gantry** — they limit how high Z can safely go, and the umbilical
+  is the only toolhead protrusion besides the cutter arm. The clearance has **not been measured**,
+  so treat moves near Z max as unsafe until it is. **Conditional**: high Z.
+- **Beacon contact always touches the same spot (175,175)** — this has already dented the smooth
+  side of the gold flex plate. Suspected (not confirmed) to cause the too-close first layers: Z=0
+  is set in the dent, so the rest of the plate is higher than the printer thinks. Fix in progress:
+  `docs/runbooks/beacon-contact-fuzzy-position.md`. **Always-on** until that runbook is done.
+
+### Heat and unattended printing
+- **Bed SSR runs without a heatsink** — Klippain's default `max_power` is 0.6 for that SSR. 0.8
+  is safe only because the SSR has active cooling, and never go toward 1.0. The bed has a thermal
+  fuse. **Always-on**.
+- **A forgotten preheat keeps heating** (maintainer-observed). `[idle_timeout]` in `overrides.cfg`
+  should `TURN_OFF_HEATERS` after 1800 s, so something is stopping it; the cause hasn't been
+  diagnosed. **Always-on** until fixed — never leave heaters on assuming the timeout will catch it.
+- **Unattended ABS/ASA relies on the external exhaust duct** (slight negative pressure, vented
+  outside). Klipper doesn't control it. All internal printed parts are ABS/ASA, so chamber heat
+  isn't a part-softening risk. **Conditional**: ABS/ASA prints.
+- **MMU load/swap commands outside a print can run as cold as ~200 °C** if the hotend wasn't
+  preheated or the wrong command was used — too cold for ABS in this UHF melt zone (grinds or
+  jams). Preheat to the gate's material temperature first. **Conditional**: bench MMU operations.
+
+### Recovery
+- **`klipper-backup` has been broken since 2026-07-12.** `~/config_backup` has a corrupt git object
+  and the remote's `main` stops there. The config itself is safe in this repo, but
+  `save_variables.cfg` (gitignored) exists **only on the Pi's SD card**. **Always-on** until the
+  backup is repaired.
 
 ### Machine-state traps
 - **`MMU_TEST_FORM_TIP` / hand-cranking with `MMU_TEST_MOVE`** — strands filament in the ~1.45 m
@@ -53,6 +80,15 @@ after motion-file edits.
   **Conditional**: after any Klipper update or reflash.
 - **Restarting Klipper mid-print** (`FIRMWARE_RESTART`, a service restart) kills the print. Check
   `print_stats.state` first. **Conditional**: while printing.
+
+### Software-update traps
+- **Happy Hare's Moonraker "Update" button tracks `main`** (`moonraker.conf [update_manager
+  happy-hare]`). It can pull HH v4 over the v3 install, which has no migration path (v4 is a fresh
+  `menuconfig` setup). **Conditional**: until `hh-v4-1-prep` pins HH to the `v3` branch.
+- **`~/bd_pressure` carries three local patches** (framed USB reads, warm-up discard, zero-crossing
+  solve). Its `update_manager` entry is commented out on purpose, and any `git pull` there silently
+  reverts them and the PA sweeps return wrong answers (`docs/pa_physics.md` Appendix A).
+  **Always-on**.
 
 ## Repo layout (Klippain)
 - User-editable files live in the **repo root**: `printer.cfg`, `overrides.cfg`, `variables.cfg`, `mcu.cfg`, `bed_fans.cfg`, `git_sync.sh`, plus `tools/` and `docs/`.
@@ -169,7 +205,10 @@ wrong, what the sensor cannot measure, and the calibration protocol; code-level 
 **MMU:** `mmu_purge_volume.md` (how purge length is computed),
 `mmu_slicer_setup.md` (OrcaSlicer checklist), `mmu_standalone_swap_plan.md` (standalone-swap runbook),
 `mmu_can_bus.md` (ERB on CAN via the Leviathan's USB-to-CAN bridge — pinouts, wiring checks, flashing
-Katapult/Klipper over CAN, recovery).
+Katapult/Klipper over CAN, recovery), `mmu_software_hh_vs_afc.md` (why Happy Hare and not AFC, and why
+v4 next), `petg-unload-stall-investigation.md` (open: PETG gear stall on fast unload — mechanism,
+mitigations, next test).
+`issues.md` is the maintainer's raw symptom log; triaged items move to `TODO.md`.
 `TODO.md` holds the build backlog; `docs/runbooks/` the per-objective runbooks; `NOTES.md` is the
 maintainer's scratchpad of hardware measurements.
 

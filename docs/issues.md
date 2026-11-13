@@ -1,7 +1,7 @@
 > **Triaged 2026-10-09** — nothing below is open here any more; tracked items live in `TODO.md`.
 > - Cold-start heat/cool dance, Z50 bob, ooze while the bed heats, 8-min soak → TODO *Cut
 >   cold-start time in START_PRINT* (one START_PRINT sequencing problem).
-> - Swap time → TODO roadmap #8 (toolchange sequence).
+> - Swap time → TODO roadmap *Optimize the toolchange sequence*.
 > - Blobs squashed by the tray, post-blob ooze → fixed (`eject_hop 3` / `z_raise 8`; purge runbook
 >   closed 2026-10-09).
 > - Jam missed by FlowGuard → fixed by `flowguard_max_relief` 40 → 8 (2026-08-20).
