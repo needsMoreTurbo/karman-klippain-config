@@ -1,7 +1,7 @@
 ## 2026-11-13 — Session workflow moved to the `work-system` plugin
 **Decision:** the repo-local `/start` · `/brief` · `/done` skills (`.claude/skills/`) are retired in
 favour of the `work-system` plugin's `/ws-start` · `/ws-brief` · `/ws-decide` · `/ws-done` ·
-`/ws-check`, configured by `.claude/work-system.json` (Full tier). `tools/hooks/guard-framework.sh`
+`/ws-check`, configured by `.work-system.json` (Full tier). `tools/hooks/guard-framework.sh`
 is replaced by the plugin's protected-paths guard reading `.claude/protected-paths.txt`.
 **Why:** the plugin was generalised from this repo's own system, so keeping both meant two copies of
 the same workflow drifting apart. The Karman-specific parts of the old `/done` (git over SSH, the

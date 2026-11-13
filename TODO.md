@@ -119,7 +119,7 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
   temperature. Probably overlaps the gate-temperature runbook (`hh-gate-temp-by-material.md`).
 - [ ] **Measure umbilical/PTFE clearance near Z max** — the last open hazard-survey item. Once
   measured, record the safe Z ceiling in the CLAUDE.md hazard register and set
-  `hazard_register` to `surveyed` in `.claude/work-system.json`.
+  `hazard_register` to `surveyed` in `.work-system.json`.
 - [ ] **KlipperScreen: one-tap chamber/toolhead light toggle** — no easy button today.
 - [ ] **Tidy the Mainsail macro list** — hide macros you'll never run from the UI (Mainsail
   macro groups/visibility, or `_`-prefixed wrappers in `overrides.cfg`), without renaming

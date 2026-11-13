@@ -126,7 +126,7 @@ ssh ernst@192.168.1.240 'tail -3 ~/printer_data/logs/klippy.log'
 ```
 A `.cfg` that is newer than the last Klipper restart is **written only**, not live.
 
-**Verification labels** (also in `.claude/work-system.json`):
+**Verification labels** (also in `.work-system.json`):
 - **verified in reality**: ran on the printer and the maintainer reported the result.
 - **validated in a proxy**: `visualize_toolchange.py` or `render_macro.py --selftest` passed, but
   the printer has not run it.
@@ -169,7 +169,7 @@ Two frameworks both think they own the toolhead. Facts that are expensive to red
 This project runs on **many short, focused sessions**, not one long chat — long sessions get
 compacted and silently lose detail. Durable knowledge lives in files; the chat is disposable.
 The session skills come from the **`work-system` plugin** (Full tier; config in
-`.claude/work-system.json`).
+`.work-system.json`).
 - **`/ws-start`** opens a session: pick **architecture** (plan, decide, write runbooks — no config
   changes), **objective** (execute one runbook), or **debug** (something broke). It runs the SSH
   probe first.

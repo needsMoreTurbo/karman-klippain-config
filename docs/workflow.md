@@ -5,7 +5,7 @@ Claude's own entry point is `CLAUDE.md`; the runbook convention lives in
 `docs/runbooks/README.md`. This file is the human-readable index of both.
 
 The session commands come from the **`work-system` plugin** (`/ws-*`). This repo is set up at the
-**Full** tier, and `.claude/work-system.json` records the tier, traits, SSH probe and what the
+**Full** tier, and `.work-system.json` records the tier, traits, SSH probe and what the
 three verification labels mean here. The repo-local `/start` · `/brief` · `/done` skills were
 retired on 2026-11-13; see `docs/decisions.md`.
 
@@ -75,7 +75,7 @@ whether it's safe to stop. Updates the runbook status log and `TODO.md`, and pro
 | `docs/runbooks/*.md` | One objective each. Archived to `done/` when finished | Via `/ws-brief` |
 | `docs/*.md` | Subsystem reference (purge math, slicer setup, bed fans…) | As needed |
 | `NOTES.md` | Your scratchpad — raw measurements, half-thoughts | Freely |
-| `.claude/work-system.json` | Tier, traits, probe, label meanings | Re-run `/ws-init` to change |
+| `.work-system.json` | Tier, traits, probe, label meanings | Re-run `/ws-init` to change |
 
 **Rule of thumb:** if a future session would waste time rediscovering it → `decisions.md` or
 `CLAUDE.md`. If it's *what to do next* → `TODO.md`. If it's *how to do one objective* → a runbook.
