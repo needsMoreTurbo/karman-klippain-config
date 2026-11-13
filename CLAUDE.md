@@ -26,16 +26,33 @@ readlink -e config >/dev/null 2>&1 && echo "MOUNT/on-Pi" || echo "WORKSTATION CL
 - **Blobifier** purge tray/bucket at the back left — `purge_macro: BLOBIFIER`, `force_purge_standalone: 1` (slicer wipe tower is OFF). Servo `PC3`, bucket switch `PC1`.
 - **Gantry-mounted nozzle rest (x45) and brush (x53–88)** at y_max. Gantry-mounted ⇒ their Z tracks the toolhead, so only an **X slide** seats/unseats the nozzle; Z is irrelevant to engagement.
 
-## ⚠️ Physical keep-out zones (Klipper has NO obstacle model — you enforce these)
-Nothing in Klipper prevents a crash. Any change to a park position, brush/purge coordinate, macro
-travel, or slicer bed shape must respect these. Verify with `tools/visualize_toolchange.py`.
+## ⚠️ Hazard register
+Klipper has **no obstacle model** and nothing stops a bad command, so this list is the only
+interlock. Survey status: **partial**. The keep-out geometry and the MMU/flashing traps are
+recorded; a full hazard walk is still open in `TODO.md`.
+
+### Physical keep-out zones (you enforce these)
+Any change to a park position, brush/purge coordinate, macro travel, or slicer bed shape must
+respect these. Verify with `tools/visualize_toolchange.py`. The `check-toolchange` hook re-runs it
+after motion-file edits.
 - **Front-left, x<10 / y<17, at ANY Z** — the Filamatrix cutter arm on the toolhead strikes the
-  front-left XY idler. Permanent toolhead geometry; applies to every move, forever.
+  front-left XY idler. Permanent toolhead geometry. **Always-on**: applies to every move.
 - **Back-left, x<~20 / y>~335, below z15** — blobifier tray, shaker arm and the depressor. This is why
-  `min_toolchange_z: 15` floors all toolchange travel.
+  `min_toolchange_z: 15` floors all toolchange travel. **Conditional**: only below z15.
 - **The y_max feature row** (tray ~x2–17, shaker x4, rest x45, brush x53–88) — must be entered in +Y
   through a **clear lane (15<x<40, or x>95)**, then slid in X. Never approach a feature head-on.
   `_KARMAN_PARK_MOVE` (overrides.cfg) enforces this and is wired in via `user_park_move_macro`.
+  **Always-on** near y_max.
+
+### Machine-state traps
+- **`MMU_TEST_FORM_TIP` / hand-cranking with `MMU_TEST_MOVE`** — strands filament in the ~1.45 m
+  bowden and desyncs HH state (details under the layering gotchas below). **Always-on**. Sending
+  them via Moonraker is blocked by `.claude/danger-commands.txt`.
+- **Flashing order after a Klipper update** — reflash the ERB first and the Leviathan last.
+  Flashing the bridge drops `can0` and takes the ERB with it (`docs/mmu_can_bus.md` §4).
+  **Conditional**: after any Klipper update or reflash.
+- **Restarting Klipper mid-print** (`FIRMWARE_RESTART`, a service restart) kills the print. Check
+  `print_stats.state` first. **Conditional**: while printing.
 
 ## Repo layout (Klippain)
 - User-editable files live in the **repo root**: `printer.cfg`, `overrides.cfg`, `variables.cfg`, `mcu.cfg`, `bed_fans.cfg`, `git_sync.sh`, plus `tools/` and `docs/`.
@@ -62,6 +79,22 @@ The repo syncs **bidirectionally** with the printer: the workstation makes hand-
 - **Deploy = edit in the repo → commit & push → run `GIT_PULL` on the printer.** Do NOT edit files directly over SSH.
 - The Pi is reachable at `ernst@192.168.1.240` for **read-only** inspection. _(If this repo is public, consider whether to keep this LAN address here.)_
 - `GIT_PULL` is print-safe (blocked mid-print) and only restarts firmware when the pull actually changed something; `git_sync.sh` uses `--ff-only` and non-interactive SSH.
+
+### Applying changes: is it live? (used by `/ws-done`)
+An edit on disk does nothing until `FIRMWARE_RESTART`, and `extras/*.py` changes need a host
+restart (see below). Gather the evidence **over SSH**, never with git on the mount:
+```
+ssh ernst@192.168.1.240 'cd ~/printer_data/config && git status -s && echo --- && git status -sb | head -1 && echo --- && git log --oneline -8'
+ssh ernst@192.168.1.240 'ls -l --time-style=+%s ~/printer_data/config/*.cfg ~/printer_data/config/mmu/base/*.cfg 2>/dev/null | awk "{print \$6, \$7}" | sort -rn | head -5'
+ssh ernst@192.168.1.240 'tail -3 ~/printer_data/logs/klippy.log'
+```
+A `.cfg` that is newer than the last Klipper restart is **written only**, not live.
+
+**Verification labels** (also in `.claude/work-system.json`):
+- **verified in reality**: ran on the printer and the maintainer reported the result.
+- **validated in a proxy**: `visualize_toolchange.py` or `render_macro.py --selftest` passed, but
+  the printer has not run it.
+- **written only**: edited, not applied (no `FIRMWARE_RESTART`) and not exercised.
 
 ## Klippain + Happy Hare layering (hard-won gotchas)
 Two frameworks both think they own the toolhead. Facts that are expensive to rediscover:
@@ -99,24 +132,31 @@ Two frameworks both think they own the toolhead. Facts that are expensive to red
 ## How sessions work here (read this before starting work)
 This project runs on **many short, focused sessions**, not one long chat — long sessions get
 compacted and silently lose detail. Durable knowledge lives in files; the chat is disposable.
-- **`/start`** opens a session: pick **architecture** (plan, decide, write runbooks — no config
-  changes), **objective** (execute one runbook), or **debug** (something broke).
-- **`/brief <objective>`** (architecture sessions) writes a self-contained runbook to
+The session skills come from the **`work-system` plugin** (Full tier; config in
+`.claude/work-system.json`).
+- **`/ws-start`** opens a session: pick **architecture** (plan, decide, write runbooks — no config
+  changes), **objective** (execute one runbook), or **debug** (something broke). It runs the SSH
+  probe first.
+- **`/ws-brief <objective>`** (architecture sessions) writes a self-contained runbook to
   `docs/runbooks/` that a fresh — or cheaper — session can execute without any prior context.
-- **`/done`** closes a session: verifies claims against evidence, reports uncommitted work, and
-  prompts for a `docs/decisions.md` entry.
+- **`/ws-decide`** records one `docs/decisions.md` entry at the moment the call is made.
+- **`/ws-done`** closes a session: verifies claims against evidence (git **over SSH** — see
+  *Applying changes*), reports uncommitted/unapplied work, says whether it is safe to stop.
+- **`/ws-check`** read-only drift audit (dead TODO links, stalled runbooks, hazard gaps).
 - Runbook anatomy + what-goes-where: **`docs/runbooks/README.md`**. Maintainer cheat sheet:
   **`docs/workflow.md`** (point the user there if they ask how any of this works).
 - **`TODO.md` is the index of record** — every runbook is linked from the task it serves.
   Actionable content lives above its `# 📖 History` divider; nothing actionable below.
 
 ## Automation in this repo (`.claude/`)
-- `.claude/settings.json` wires three hooks (scripts in `tools/hooks/`, all mode-aware no-ops in
-  a workstation clone): **guard-git** blocks git run on the mount, **guard-framework** blocks
-  edits to the Klippain install, **check-toolchange** re-runs the visualizer after any edit to a
-  motion-affecting file and reports keep-out violations. Run `/hooks` to review or disable.
-- Skills in `.claude/skills/`: **`/start`** (open a session), **`/brief`** (write a runbook),
-  **`/done`** (wrap up — verifies claims against evidence before reporting).
+- `.claude/settings.json` wires two project hooks (scripts in `tools/hooks/`, both mode-aware
+  no-ops in a workstation clone): **guard-git** blocks git run on the mount, and
+  **check-toolchange** re-runs the visualizer after any edit to a motion-affecting file and
+  reports keep-out violations.
+- The `work-system` plugin supplies two data-driven guards: **`.claude/protected-paths.txt`**
+  blocks edits to the Klippain install (`config/`, `macros/`, `moonraker/`, `scripts/`,
+  `klippain_config/`), and **`.claude/danger-commands.txt`** blocks the commands listed there. Run
+  `/hooks` to review or disable.
 
 ## Reference docs (`docs/`)
 `bed_fans_control.md` · `camera_streaming.md` · `custom_macros.md` · `thermal_expansion.md` ·

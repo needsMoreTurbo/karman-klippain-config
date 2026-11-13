@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "tier": "full",
+  "initialized": "2026-11-13",
+  "subject": "Karman — Voron 2.4 running Klippain + Happy Hare (NightOwl MMU)",
+  "traits": {
+    "physical": true,
+    "remote-target": true,
+    "deployed": true,
+    "versioned": true,
+    "human-executed": true,
+    "irreversible-cost": true,
+    "regulated": false,
+    "multi-party": false,
+    "budgeted": false,
+    "scheduled": false
+  },
+  "probe": "ssh -o ConnectTimeout=5 ernst@192.168.1.240 'uptime && systemctl is-active klipper moonraker'",
+  "hazard_register": "partial",
+  "labels": {
+    "verified": "ran on the printer and the maintainer reported the result",
+    "proxy": "visualize_toolchange.py / render_macro.py --selftest passed; the printer has not run it",
+    "written": "edited, not applied (no FIRMWARE_RESTART) and not exercised"
+  }
+}

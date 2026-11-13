@@ -1,3 +1,16 @@
+## 2026-11-13 — Session workflow moved to the `work-system` plugin
+**Decision:** the repo-local `/start` · `/brief` · `/done` skills (`.claude/skills/`) are retired in
+favour of the `work-system` plugin's `/ws-start` · `/ws-brief` · `/ws-decide` · `/ws-done` ·
+`/ws-check`, configured by `.claude/work-system.json` (Full tier). `tools/hooks/guard-framework.sh`
+is replaced by the plugin's protected-paths guard reading `.claude/protected-paths.txt`.
+**Why:** the plugin was generalised from this repo's own system, so keeping both meant two copies of
+the same workflow drifting apart. The Karman-specific parts of the old `/done` (git over SSH, the
+"is it live?" mtime check, the three label meanings) now live in CLAUDE.md under *Applying changes*,
+where the generic plugin skills read them.
+**Rejected:** porting `guard-git.sh` to `.claude/danger-commands.txt`. It is mode-aware (it only
+blocks on the SSHFS mount, and lets through commands already sent over `ssh`), and a static regex
+list can't express either rule. It stays a project hook, as does `check-toolchange.sh`.
+
 ## 2026-11-08 — Back to KlipperScreen (Happy Hare edition); HelixScreen uninstalled
 **Decision:** KlipperScreen-HH (`moggieuk/KlipperScreen-Happy-Hare-Edition`, `master`) is the
 touchscreen UI. HelixScreen was removed with its own uninstaller and `helixscreen/` deleted from

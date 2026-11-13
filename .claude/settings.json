@@ -12,17 +12,6 @@
             "statusMessage": "Checking git is going via SSH..."
           }
         ]
-      },
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/tools/hooks/guard-framework.sh\"",
-            "timeout": 10,
-            "statusMessage": "Checking target is not a framework file..."
-          }
-        ]
       }
     ],
     "PostToolUse": [

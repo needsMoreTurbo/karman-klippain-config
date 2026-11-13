@@ -56,7 +56,7 @@ Every item here is validated config with a recorded reason. Changing any of them
 objective.
 
 - **The start-of-print `MMU_UNLOAD` / gate check.** Do not try to skip it. It lives in the
-  Klippain framework (`macros/hardware_functions/mmu.cfg`, read-only — the `guard-framework` hook
+  Klippain framework (`macros/hardware_functions/mmu.cfg`, read-only — the protected-paths guard
   blocks edits), and even if Klippain skipped it, Happy Hare's `MMU_CHECK_GATE` force-ejects
   before checking any gate other than the loaded one (`~/Happy-Hare/extras/mmu/mmu.py` ~8960-8975).
   This runbook shortens what happens *after* it, not the unload itself.

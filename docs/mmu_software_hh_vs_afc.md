@@ -97,7 +97,7 @@ features above are the hard part, and Karman's file already has them.
 1. **Now:** pin Happy Hare to the `v3` branch (§0).
 2. **Next:** do the CAN move, NightOwl relocation and bowden re-cal on v3, known-good software, so
    hardware faults aren't confounded with software changes (`docs/mmu_can_bus.md`, roadmap #7).
-3. **Then:** migrate to v4 as its own objective (worth a `/brief`). Keep the `mmu.V3` backup open
+3. **Then:** migrate to v4 as its own objective (worth a `/ws-brief`). Keep the `mmu.V3` backup open
    for calibration values and custom macros.
 
 **Unverified — check against v4 source before relying on any of it:**

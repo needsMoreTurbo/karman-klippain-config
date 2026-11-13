@@ -38,7 +38,7 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
    - retract → move to cutter → cut → fast retract while fast-moving to blobifier → load + execute blobifier → shake bin → wipe nozzle → return to print.
    - tune purge amount (accounting for the pre-cut retraction).
    - **Goal: shorter swaps** — the maintainer finds swap time "just too long" (`docs/issues.md`
-     2026-08-08). Worth a `/brief` when this comes up.
+     2026-08-08). Worth a `/ws-brief` when this comes up.
 10. **Spoolman integration.**
 
 ## Filamatrix
@@ -217,6 +217,10 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
   second filament" the SOP task above needs. — runbook: `docs/runbooks/pa-calibration-sop.md`
 
 ## Miscellaneous
+- [ ] **Finish the hazard survey** — the CLAUDE.md hazard register is `partial` (keep-out geometry +
+  MMU/flashing traps only). Walk the work-system hazard checklist (heat left on, chamber/ABS fumes,
+  bed-heater runaway limits, CAN-bus loss mid-print, filament stranded in the bowden…) and set
+  `hazard_register` in `.claude/work-system.json` to `surveyed`.
 - [x] **Audit START_PRINT for no-op / hardware-stale steps** — ✅ done and **verified on hardware
   2026-08-02** (single-colour + 2-colour). First layer measurably better; no manual Z offset
   needed. — runbook: `docs/runbooks/done/start-print-audit.md`

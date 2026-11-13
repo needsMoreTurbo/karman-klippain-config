@@ -12,8 +12,9 @@ that work: a self-contained brief one fresh session can execute end to end.
 | **Objective** | Execute exactly one runbook. | Verified hardware/config outcome + commits | Short, disposable |
 | **Debug** | React to something broken or surprising. Unplanned. | A fix, plus a `decisions.md` entry if the cause was non-obvious | Short |
 
-Start one with `/start` (it asks which kind and orients accordingly). Close one with `/done`.
-Write a runbook with `/brief <objective>` from an architecture session.
+Start one with `/ws-start` (it asks which kind and orients accordingly). Close one with `/ws-done`.
+Write a runbook with `/ws-brief <objective>` from an architecture session; record a decision
+mid-session with `/ws-decide`. These come from the `work-system` plugin.
 
 **Why bother:** long sessions get compacted, and compaction silently drops detail — in practice
 that has meant re-deriving settled facts and, once, mislabelling tested work as untested. A
@@ -35,7 +36,7 @@ A runbook is **not** a diary. Durable outcomes graduate into `decisions.md` / `C
 ## Anatomy of a good runbook
 
 Derived from `mmu_standalone_swap_plan.md`, which a cold session executed successfully.
-`/brief` writes this shape automatically.
+`/ws-brief` writes this shape automatically; `TEMPLATE.md` is the blank form.
 
 1. **Header** — objective in one line, status, date, prerequisites.
 2. **Scope** — what this session will do.
@@ -70,6 +71,6 @@ section that task belongs to. Don't keep a second list here; two indexes drift.
 - **Completed** — `docs/runbooks/done/`. Currently: `blobifier-bringup.md` (back-left rework
   verified, Blobifier live, 2-colour print ✅ 2026-07-24).
 
-When `/brief` writes a runbook it **must** register the objective in `TODO.md`: into the matching
+When `/ws-brief` writes a runbook it **must** register the objective in `TODO.md`: into the matching
 section if one exists, into `## Miscellaneous` if it's a standalone one-off, or into a new
 section if it's likely the first of several related objectives.

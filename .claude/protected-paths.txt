@@ -1,0 +1,6 @@
+# Paths Claude must not edit directly (work-system plugin guard). Globs match the absolute path.
+*/printer_data/config/config/*    | Klippain framework (symlink into ~/klippain_config) — reverted on update, untracked here. Put hand-edits in overrides.cfg (macros) or variables.cfg (settings).
+*/printer_data/config/macros/*    | Klippain framework (symlink into ~/klippain_config) — reverted on update, untracked here. Override the macro in overrides.cfg instead.
+*/printer_data/config/moonraker/* | Klippain framework (symlink into ~/klippain_config) — reverted on update, untracked here. Use moonraker.conf in the repo root.
+*/printer_data/config/scripts/*   | Klippain framework (symlink into ~/klippain_config) — reverted on update, untracked here.
+*/klippain_config/*               | Klippain framework install — managed by Klippain's updater. Put hand-edits in overrides.cfg / variables.cfg.

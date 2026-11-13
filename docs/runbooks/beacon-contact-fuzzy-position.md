@@ -98,7 +98,7 @@ unchanged.
   to skip the cool-down wait.
 - **`macros/base/probing/hooks/beacon_contact.cfg`** and everything under `config/`, `macros/`,
   `moonraker/`, `scripts/` — symlinks into the Klippain install. Never edit them; override in
-  `overrides.cfg` (the `guard-framework` hook will block you anyway). Precedent for this style of
+  `overrides.cfg` (the protected-paths guard will block you anyway). Precedent for this style of
   override: `_CONDITIONAL_MOVE_TO_PURGE_BUCKET` in `overrides.cfg`.
 - **`~/beacon_klipper/beacon.py`** — do **not** patch the vendor module to make `home_pos`
   settable. It is managed by its own updater and would be silently reverted, and a `.py` change
