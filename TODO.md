@@ -5,24 +5,23 @@ Updated 2026-10-09 — 🎉 **MMU is functionally complete**: cutter + Blobifier
 a 2-colour print (2026-07-24). Remaining work is tuning, safety loose ends, and relocation.
 
 ## ▶ Next up (in order)
-1. **Repair `klipper-backup`** — broken since 2026-07-12 (corrupt git object in `~/config_backup`);
-   `save_variables.cfg` currently has no backup anywhere. See the task under *Miscellaneous*.
-2. **Standardise per-filament PA calibration, PETG first** — the SOP and the PETG measurement are
+1. **Standardise per-filament PA calibration, PETG first** — the SOP and the PETG measurement are
    one runbook (PETG is the "real second filament" the SOP needs). — runbook:
    `docs/runbooks/pa-calibration-sop.md`
-3. **Cut cold-start time in START_PRINT** (PET-ooze runbook done; its actions are already folded in) — soak 8 → 3, nozzle to 150
+2. **Cut cold-start time in START_PRINT** (PET-ooze runbook done; its actions are already folded in) — soak 8 → 3, nozzle to 150
    right after the start unload, fan-assisted cooldown. — runbook:
    `docs/runbooks/start-print-cold-start-speedup.md`
-4. **Gate temperature follows the material** (and stops reverting to 245 °C on a colour edit in
+3. **Gate temperature follows the material** (and stops reverting to 245 °C on a colour edit in
    Mainsail) — small, works on v3 now. — runbook: `docs/runbooks/hh-gate-temp-by-material.md`
-5. **Happy Hare v4 migration** (3 runbooks, in order — see *Happy Hare v4 migration* below) — after
-   the CAN conversion (order changed 2026-10-11).
+4. **INDX phase 1: migrate to Kalico on the current hardware** — runbook:
+   `docs/runbooks/kalico-migration.md`. _(Items 1–3 above are tied to HH/UHF hardware that INDX
+   retires; maintainer to decide whether they still earn their keep.)_
 
 ## 🗺 High-level roadmap (priority order)
 _The big-picture sequence — reference this when re-prioritizing. Detailed tasks live in the sections below._
 
-1. **Migrate Happy Hare v3 → v4** — chosen over AFC (`docs/decisions.md` 2026-10-10); runs *after*
-   the CAN conversion (order changed 2026-10-11). Three runbooks, see *Happy Hare v4 migration*.
+1. **Migrate to Bondtech INDX on plain Kalico** — decided 2026-11-13 (`docs/decisions.md`);
+   replaces the cancelled HH v4 migration. Seven phases, see *Bondtech INDX migration* below.
 2. **Optimize the toolchange sequence:**
    - retract → move to cutter → cut → fast retract while fast-moving to blobifier → load + execute blobifier → shake bin → wipe nozzle → return to print.
    - tune purge amount (accounting for the pre-cut retraction).
@@ -70,19 +69,32 @@ _The big-picture sequence — reference this when re-prioritizing. Detailed task
   - [ ] **Slicer bed exclusion** — notch the bed polygon: front-left idler corner + back-left blobifier/depressor zone
   - [ ] **Vet remaining macro positions** (prime line, Beacon contact, purge/clean during START_PRINT) against the new zones
 
-## Happy Hare v4 migration
-_Decided 2026-10-10 (`docs/decisions.md`): v4, not AFC; runs after the CAN conversion (order changed
-2026-10-11). v3→v4 is a fresh
-`menuconfig` setup — nothing migrates — so every Karman value is carried by hand from a ledger._
-- [ ] **Part 1 — prep:** pin HH to the `v3` branch (closes the "Update button pulls v4" hazard),
-  back up, and build `docs/hh_v4_carryover.md` (every carried value → its v4 home, menuconfig
-  answers, compatibility checks vs v4 source). — runbook: `docs/runbooks/hh-v4-1-prep.md`
-- [ ] **Part 2 — install + core MMU:** v4 install, include/pin reconciliation with Klippain,
-  sensors, PSF, per-gate bowden, load/eject, swaps with cut (purge off). — runbook:
-  `docs/runbooks/hh-v4-2-install-core.md`
-- [ ] **Part 3 — Blobifier + acceptance:** v4's bundled Blobifier with Karman's values, purge
-  ownership, START_PRINT/END_PRINT, 2-colour ABS acceptance print, CLAUDE.md + docs updated. —
-  runbook: `docs/runbooks/hh-v4-3-blobifier-print.md`
+## Bondtech INDX migration
+_Decided 2026-11-13 (`docs/decisions.md`): plain Kalico config (Klippain features borrowed
+selectively), Kalico first on today's hardware, NightOwl/HH/Filamatrix/Blobifier removed at the
+conversion, Beacon kept as QGL + mesh scanner, load cell owns Z, 5 tools (expandable to 8–9), XY
+offsets by camera. Kit has arrived; mount scheme still being researched (likely front mount)._
+- [ ] **Phase 1 — Kalico on current hardware** (Klippain + HH v3 still in place) — runbook:
+  `docs/runbooks/kalico-migration.md`
+- [ ] **Phase 2 — INDX config design (offline):** plain-Kalico repo layout replacing Klippain;
+  `[indx]`, per-tool extruders, `[load_cell_probe]`, Beacon `register_as_probe: false`, one merged
+  `[homing_override]`, START/END_PRINT, which Klippain features to borrow. Blocked on the mount
+  choice.
+- [ ] **Phase 3 — physical conversion** (maintainer): mount, idlers, endstops, chain, docks,
+  toolboard wiring; NightOwl, Blobifier, brush out. **Check dock pitch vs the 8–9 tool goal first.**
+- [ ] **Phase 4 — bring-up:** toolboard flash, restart-error loop, endstops/limits,
+  `CALIBRATE_LOAD_CELL`, homing, QGL, `INDX_CALIBRATE` per tool, ShakeTune re-run.
+- [ ] **Phase 5 — tool calibration:** docks (`CALIBRATE_DOCK_X`), `CAL_Z`, camera XY offsets,
+  per-tool rotation distance, PA via the load cell.
+- [ ] **Phase 6 — macros + slicer:** `CHANGE_TOOL` in Orca, prime/wipe tower, new presets and bed
+  shape.
+- [ ] **Phase 7 — hazards + acceptance:** rewrite the hazard register and keep-outs, retire/rewrite
+  `visualize_toolchange.py`, multi-tool acceptance print, docs.
+
+## ~~Happy Hare v4 migration~~ — cancelled 2026-11-13
+_Superseded by the INDX migration (`docs/decisions.md` 2026-11-13). The runbooks
+`docs/runbooks/hh-v4-{1,2,3}-*.md` will not be executed; move them to `done/` marked cancelled when
+convenient. Part 1's only lasting item — pin HH to `v3` — was done 2026-11-13._
 
 ## Slicer configuration (Happy Hare)
 _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.md` (the authoritative record)._
@@ -105,11 +117,9 @@ _Done 2026-07-14 — full OrcaSlicer checklist lives in `docs/mmu_slicer_setup.m
   second filament" the SOP task above needs. — runbook: `docs/runbooks/pa-calibration-sop.md`
 
 ## Miscellaneous
-- [ ] **Repair `klipper-backup`** — broken since **2026-07-12**: `~/config_backup` has an empty
-  (corrupt) git object (`56c7c8e…`), so every 4-hourly cron run since then has failed silently.
-  `save_variables.cfg` is gitignored here, so its only copy is on the SD card. Fix the local
-  repo (or re-clone from the remote), confirm a new commit reaches GitHub, then do one test restore.
-  _Found by the hazard survey, 2026-11-13._
+- [ ] **Make `klipper-backup` failures loud** — the July breakage went unnoticed for four months
+  because cron failures are silent. Add an alert (cron wrapper that notifies on non-zero exit, or a
+  `/ws-check` item comparing the remote's latest commit date to now).
 - [ ] **Forgotten preheat never times out** (maintainer-observed) — `[idle_timeout]` in
   `overrides.cfg` (1800 s → `TURN_OFF_HEATERS`) should catch it, so something stops it firing.
   Debug session: reproduce with a preheat and check klippy.log for `Idle timeout reached`.
@@ -185,6 +195,13 @@ decisions lives in `docs/decisions.md`; per-objective execution records are in
 `docs/runbooks/done/`._
 
 ## ✅ Recently completed
+
+### 2026-11-13 — `klipper-backup` repaired
+Cause: 23 zero-byte loose objects in `~/config_backup/.git` from a crash at 2026-07-12 17:12; every
+cron run since failed silently. Fix: moved the repo aside, fresh clone from GitHub (remote `main`
+was intact), `script.sh` run once. **Verified in reality:** manual commit `d5b241a` and the 20:00
+cron commit `a0bf2d3` both reached GitHub; test restore (fresh clone, `fsck` clean) gave a
+byte-identical `save_variables.cfg` and `printer.cfg`. See `docs/decisions.md` 2026-11-13.
 
 ### 2026-11-13 — checklist sweep: completed tasks moved out of the active sections
 Moved verbatim from above the divider (`/ws-check` 2026-11-13). Each item keeps its own completion

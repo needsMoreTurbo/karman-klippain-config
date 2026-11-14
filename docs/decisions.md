@@ -1,3 +1,54 @@
+## 2026-11-13 — Karman moves to Bondtech INDX on plain Kalico; HH v4 series stopped
+**Decision (maintainer):**
+- **The Happy Hare v4 series stops.** Its runbooks (`docs/runbooks/hh-v4-*.md`) will not be
+  executed. The NightOwl, Happy Hare, Filamatrix and Blobifier are removed during the INDX
+  conversion.
+- **Firmware: Kalico, on a plain Kalico config.** Klippain is not carried forward as a framework.
+  Individual Klippain features may be borrowed into user-owned files.
+- **Order: Kalico is migrated first, on the current hardware** (current toolhead, MMU still
+  installed), before any INDX hardware goes in.
+- **Beacon stays, as QGL + mesh scanner only.** It mounts at about the same position relative to
+  the nozzle as today. The INDX toolhead load cell owns Z, which ends the Beacon contact touches
+  on one spot of the plate.
+- **Tools:** 5 at first, expandable to 8–9 later. **XY offsets by nozzle camera**, possibly
+  automated.
+- **PA:** the method in `docs/pa_physics.md` carries over, but the sensor changes from BDPressure
+  to the INDX toolhead load cell.
+- **Hardware status:** the kit has arrived. The mount scheme is undecided; front mount is likely.
+**Why:**
+- INDX replaces nearly everything the HH v4 work was for (cutter, purge, swap logic, the single
+  UHF melt zone), so v4 would be work thrown away.
+- Kalico is INDX's reference implementation; the mainline `indx_klipper` add-on only tracks it.
+- Klippain owns the homing override, START_PRINT and Beacon probing. INDX replaces all three
+  (one `[homing_override]`; Z homes on T0 via the load cell), and no source tests Klippain on
+  Kalico or with INDX.
+- Kalico goes first for the same reason CAN went before HH v4 (2026-10-11): a fault after one
+  change stays attributable to that change.
+**Rejected:**
+- *Finishing HH v4 first* — the NightOwl is leaving.
+- *Keeping Klippain on Kalico* — it would mean fighting a framework for the three things INDX
+  owns, on an untested combination.
+- *Mainline Klipper + `indx_klipper`* — it trails Kalico.
+- *Converting hardware and firmware together* — any fault would then have two candidate causes.
+**Open, and it constrains the mount choice:** 8–9 tools on a 350 bed. karasgit's rear-mount v2
+fits 8 at 36 mm pitch without Bondtech part cooling, or 7 at 41 mm with it, and its author
+recommends 42 mm (41 clashes with ducts). The 9-tool target is probably out of reach in one row
+with part cooling. Check the dock pitch for the chosen mount before committing.
+**Evidence:** maintainer decision. Desk research: docs.kalico.gg/INDX.html, the BondtechAB/INDX
+wiki, the karasgit/INDX-for-Voron-2.4 README. Nothing installed or tested.
+
+## 2026-11-13 — klipper-backup repaired by re-cloning, not by patching git objects
+**Decision:** replaced `~/config_backup` with a fresh clone of the GitHub remote
+(`~/config_backup.corrupt` kept aside until the maintainer deletes it).
+**Why:** `script.sh` wipes everything except `.git` after each run, so the local repo holds only
+history that also lives on the remote. `fsck` showed 23 empty loose objects (crash at 2026-07-12
+17:12), including the HEAD commit `56c7c8e`, which the remote still had intact. Re-cloning was
+simpler and safer than salvaging objects.
+**Trap:** the `origin` URL (and `.env`) embeds a GitHub PAT in plaintext, so `git remote -v` prints
+it. It was exposed in a session transcript and should be rotated (update `github_token` in
+`~/klipper-backup/.env`; the script rewrites the URL on the next run). The backup now also sweeps
+in `__pycache__/*.pyc` and `tools/toolchange_viz.html`; add them to `exclude` in `.env` if wanted.
+
 ## 2026-11-13 — Session workflow moved to the `work-system` plugin
 **Decision:** the repo-local `/start` · `/brief` · `/done` skills (`.claude/skills/`) are retired in
 favour of the `work-system` plugin's `/ws-start` · `/ws-brief` · `/ws-decide` · `/ws-done` ·

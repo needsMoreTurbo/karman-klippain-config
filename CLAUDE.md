@@ -66,10 +66,11 @@ after motion-file edits.
   jams). Preheat to the gate's material temperature first. **Conditional**: bench MMU operations.
 
 ### Recovery
-- **`klipper-backup` has been broken since 2026-07-12.** `~/config_backup` has a corrupt git object
-  and the remote's `main` stops there. The config itself is safe in this repo, but
-  `save_variables.cfg` (gitignored) exists **only on the Pi's SD card**. **Always-on** until the
-  backup is repaired.
+- **`klipper-backup` fails silently.** Repaired 2026-11-13 (it had been dead since 2026-07-12 with
+  nobody noticing). Cron gives no alert on failure, so check the latest commit on
+  `needsMoreTurbo/karman-klippain-backup` after anything touching `~/config_backup`.
+  `save_variables.cfg` (gitignored) is backed up **only** there. **Always-on** until failures alert
+  (`TODO.md`).
 
 ### Machine-state traps
 - **`MMU_TEST_FORM_TIP` / hand-cranking with `MMU_TEST_MOVE`** — strands filament in the ~1.45 m
@@ -82,9 +83,11 @@ after motion-file edits.
   `print_stats.state` first. **Conditional**: while printing.
 
 ### Software-update traps
-- **Happy Hare's Moonraker "Update" button tracks `main`** (`moonraker.conf [update_manager
-  happy-hare]`). It can pull HH v4 over the v3 install, which has no migration path (v4 is a fresh
-  `menuconfig` setup). **Conditional**: until `hh-v4-1-prep` pins HH to the `v3` branch.
+- **Happy Hare must stay on its `v3` branch** (`moonraker.conf [update_manager happy-hare]`
+  `primary_branch: v3`; local checkout on branch `v3`, pinned 2026-11-13). Upstream `main` carries
+  v4, which has no migration path from v3. Never switch the checkout or the Moonraker entry back to
+  `main`. **Conditional**: until the NightOwl is removed in the INDX conversion
+  (`docs/decisions.md` 2026-11-13).
 - **`~/bd_pressure` carries three local patches** (framed USB reads, warm-up discard, zero-crossing
   solve). Its `update_manager` entry is commented out on purpose, and any `git pull` there silently
   reverts them and the PA sweeps return wrong answers (`docs/pa_physics.md` Appendix A).
