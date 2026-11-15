@@ -7,7 +7,7 @@ sheet twice per print. Adopted from RatOS's
 ([RatOS beacon docs](https://os.ratrig.com/docs/configuration/beacon/)).
 **Status:** 🟡 not started
 **Issue:** td-c12419
-_Written before task tracking moved to td (2026-11-14). Wherever this runbook says to update or tick `TODO.md`, update this issue instead (`td log`, then `/ws-done`); and leave this file where it is rather than moving it to `done/`._
+_Written before task tracking moved to td (2026-11-14). Log progress to this issue (`td log`, then `/ws-done`), and leave this file where it is rather than moving it to `done/`._
 **Created:** 2026-09-04
 **Prerequisites:** printer idle (not mid-print); a bed mesh loaded or creatable; nozzle clean.
 
@@ -500,8 +500,7 @@ After hardware verification, add a `docs/decisions.md` entry covering:
 - that the radius is bounded by `bed_mesh zero_reference_position` coupling, not by clearance,
   with the measured deviation numbers.
 
-Then update `TODO.md`: tick the task under **Miscellaneous** and drop it from **▶ Next up** if it
-was added there.
+Then update the issue (`td-c12419`): `td log` the result and let `/ws-done` set its state.
 
 ## Status log
 

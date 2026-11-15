@@ -7,7 +7,7 @@ of resetting it to 245. This is a Karman-side wrapper in `overrides.cfg`. It wor
 v3 today and carries over unchanged to v4.
 **Status:** 🟡 not started
 **Issue:** td-e44f03
-_Written before task tracking moved to td (2026-11-14). Wherever this runbook says to update or tick `TODO.md`, update this issue instead (`td log`, then `/ws-done`); and leave this file where it is rather than moving it to `done/`._
+_Written before task tracking moved to td (2026-11-14). Log progress to this issue (`td log`, then `/ws-done`), and leave this file where it is rather than moving it to `done/`._
 **Created:** 2026-10-10
 **Prerequisites:** printer idle for `FIRMWARE_RESTART`. No print needed.
 
@@ -209,7 +209,7 @@ curl -s "http://192.168.1.240:7125/printer/objects/query?mmu=gate_material,gate_
 Git runs **only over SSH**. The maintainer runs commits. Propose:
 1. `tools: let render_macro pass rawparams (and macro variables)` — `tools/render_macro.py`.
 2. `fix: keep gate temperature on partial gate-map edits and fill it from the material` —
-   `overrides.cfg`, `docs/decisions.md`, `TODO.md`, this runbook (moved to `docs/runbooks/done/`).
+   `overrides.cfg`, `docs/decisions.md`, this runbook.
 
 Decisions entry title:
 `## 2026-MM-DD — MMU_GATE_MAP wrapper: gate temperature from material, kept on partial edits`.

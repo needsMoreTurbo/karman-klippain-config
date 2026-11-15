@@ -6,7 +6,7 @@ in repo-root files: shorter bed soak, hotend dropped to the contact-safe tempera
 the start-of-print MMU unload, and a cooldown that no longer blocks on a fan-less wait to 150 °C.
 **Status:** 🟡 not started
 **Issue:** td-df85f7
-_Written before task tracking moved to td (2026-11-14). Wherever this runbook says to update or tick `TODO.md`, update this issue instead (`td log`, then `/ws-done`); and leave this file where it is rather than moving it to `done/`._
+_Written before task tracking moved to td (2026-11-14). Log progress to this issue (`td log`, then `/ws-done`), and leave this file where it is rather than moving it to `done/`._
 **Created:** 2026-10-09
 **⚠️ Run order:** execute **after** `docs/runbooks/done/nozzle-ooze-pet-hot-wipe.md` (maintainer, 2026-10-10).
 That runbook adds `karman_hot_wipe_heat` / `karman_hot_wipe_cool` around the first `clean`; its
@@ -278,7 +278,7 @@ Then run the Step 1 timing command. Expected:
   covering: why 3 not 0; why `extruder_preheating` was replaced (its M109 blocks on cooling);
   why the Z-defining contact must be at 150 (expansion reference) while the calibrate contact may
   be ≤ 180; the measured before/after times.
-- `TODO.md`: tick the task under *Miscellaneous* and remove it from *▶ Next up*.
+- td: `td log` the result on `td-df85f7` and let `/ws-done` set its state.
 
 ## Verification
 
@@ -289,7 +289,7 @@ Then run the Step 1 timing command. Expected:
 - [ ] Cold multi-tool start: soak runs 3 min; nozzle target drops to 150 right after the
       unload; START_PRINT duration measured and compared to the baseline (Step 7).
 - [ ] Maintainer confirms first layer is **as good as before** on both tests.
-- [ ] Walkthrough + decisions.md updated; TODO.md task ticked.
+- [ ] Walkthrough + decisions.md updated; `td-df85f7` updated.
 
 ## Commit guidance
 
@@ -298,7 +298,7 @@ The maintainer runs commits. Git **only over SSH** (never on the mount). Propose
 1. `feat: shorten start_print cold start (soak 3, nozzle to safe temp after unload)`
    — `variables.cfg`, `overrides.cfg` (+ `tools/visualize_toolchange.py` if Step 4 needed it).
 2. `docs: record the start_print cold-start speed-up` — `docs/start_print_walkthrough.md`,
-   `docs/decisions.md`, `TODO.md`, this runbook (moved to `docs/runbooks/done/`).
+   `docs/decisions.md`, this runbook.
 
 ```
 ssh ernst@192.168.1.240 'cd ~/printer_data/config && git status -s'

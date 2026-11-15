@@ -115,7 +115,7 @@ Ask the user after Step 3's test swap: did the first blob adhere and extrude imm
 - Verify: `ssh ernst@192.168.1.240 'grep -a "purge_volumes\|MMU_CALC" ~/printer_data/logs/mmu.log | tail -5'`
   and that a standalone swap's purge is no longer the flat ~150 mm (console shows the computed value).
 - Check persistence: after the next `FIRMWARE_RESTART`, `MMU_SLICER_TOOL_MAP` (console) should still
-  show the matrix. If it does NOT persist, note in TODO.md: "re-run MMU_CALC_PURGE_VOLUMES after
+  show the matrix. If it does NOT persist, note in td (`td create`): "re-run MMU_CALC_PURGE_VOLUMES after
   restarts / color changes" (do not build automation now).
 - Note: in-print, the slicer's `MMU_START_SETUP ... PURGE_VOLUMES=!purge_volumes!` overwrites this — intended.
 
@@ -134,7 +134,7 @@ Only after Steps 1–5 are verified and at least one clean print has completed:
       Blobifier purge normal). The in-print guard is the critical assertion.
 - [ ] Pause mid-print: parks at rest, heater off (new 1c), RESUME reheats + side-exits + resumes.
 - [ ] `uv run tools/visualize_toolchange.py` still reports all scenarios clean.
-- [ ] Update TODO.md (mark plan items done) and this doc (mark steps done, record Outcome A/B).
+- [ ] Update td (log the plan items done) and this doc (mark steps done, record Outcome A/B).
 
 ## Step 8 — Commit (via SSH on the Pi, only after user confirms tests pass)
 Suggested split (Conventional Commits, single-line, propose to user first):

@@ -7,7 +7,7 @@ maintainer reports a clean **single-colour ABS print** plus **one `T0`→`T1` sw
 rollback path to mainline is kept until then.
 **Status:** 🟡 not started · **Created:** 2026-11-13
 **Issue:** td-079c2a
-_Written before task tracking moved to td (2026-11-14). Wherever this runbook says to update or tick `TODO.md`, update this issue instead (`td log`, then `/ws-done`); and leave this file where it is rather than moving it to `done/`._
+_Written before task tracking moved to td (2026-11-14). Log progress to this issue (`td log`, then `/ws-done`), and leave this file where it is rather than moving it to `done/`._
 **Prerequisites:**
 - Printer idle, not printing. A few hours of maintainer time at the machine are available.
 - `git status` on the Pi is clean, and everything is pushed. Check this over SSH (Step 1).
@@ -16,7 +16,7 @@ _Written before task tracking moved to td (2026-11-14). Wherever this runbook sa
 - Moonraker has been restarted since 2026-11-13, so the Happy Hare `v3` pin is live. Step 1 checks
   this.
 
-This is **phase 1 of the INDX migration** (`TODO.md` → *Bondtech INDX migration*). The reasons
+This is **phase 1 of the INDX migration** (epic `td-f169a5`, *Bondtech INDX migration*). The reasons
 are in `docs/decisions.md` 2026-11-13. In short, Kalico goes in first, on known-good hardware, so
 that a fault is attributable to one change.
 
@@ -355,8 +355,7 @@ backwards-compatible. Record in the status log which gate triggered.
 ## Commit guidance
 
 - `chore: migrate karman from mainline klipper to kalico` — `overrides.cfg`, `bed_fans.cfg`,
-  `moonraker.conf`, `CLAUDE.md`, `docs/mmu_can_bus.md`, `docs/bed_fans_control.md`, this runbook,
-  `TODO.md`.
+  `moonraker.conf`, `CLAUDE.md`, `docs/mmu_can_bus.md`, `docs/bed_fans_control.md`, this runbook.
 - `docs/decisions.md` entry *"Karman on Kalico `<tag>`"*. It must record:
   - why `min_power: 0` rather than the old `off_below` values (the rescale);
   - that add-ons were re-linked by copying symlinks, not by running installers, and why;
