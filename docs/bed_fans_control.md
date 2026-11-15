@@ -107,6 +107,7 @@ A single latch (`manual_latch` + `manual_speed`) makes manual control persistent
 - **Latch lifetime.** A latch set *during* a print is released once, on the **print-end transition** (`just_ended`), so cooldown and the next print run in auto. A latch set *after* a print (during cooldown) **wins over the COOL state and holds** — so `BED_FANS_MANUAL`/`BED_FANS_OFF` work post-print, which they previously didn't. Any lingering latch is also dropped at the **next print start** (`just_started`), so a stale manual speed can never leak into a new print's heat-up and re-cause the heater stall. This requires the loop to remember the previous `print_stats.state` in `prev_state` and to check the manual/slider branches **before** the ongoing-COOL branch.
 
 Klipper reports `fan_generic.speed` as the last commanded value (not a measurement), so slider detection is exact aside from the ε guard for kick-start/`off_below` rounding.
+Since the Kalico migration (2026-11-14) `[fan_generic Bed_Fans]` uses `min_power: 0` instead of `off_below: 0.09`: Kalico rescales requests onto `min_power..max_power`, so keeping 0.09 would have raised every PWM. The loop never commands between 0 and 0.10, so behaviour is unchanged.
 
 - **`BED_FANS_STATUS`** — prints current state, commanded speed, latch status, and the active thresholds. Replaces the old `_BED_FAN_READ` / `BED_FANS_*_INFO` / `_MONITOR_MESSAGE_READ` cluster.
 

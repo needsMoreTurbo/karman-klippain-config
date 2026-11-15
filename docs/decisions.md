@@ -1,3 +1,39 @@
+## 2026-11-14 — Karman on Kalico `v2026.11.00` (INDX phase 1)
+**Done:** mainline Klipper `v0.13.0-662` was replaced by Kalico `v2026.11.00` on the unchanged
+hardware (Klippain, Happy Hare v3 at `5cc88729`, Beacon 2.1.0, BDPressure). Host and all three MCUs
+run it. Runbook: `docs/runbooks/kalico-migration.md` (td-079c2a).
+**Choices, and why:**
+- **Fans: `off_below` became `min_power: 0`**, not the old thresholds (`[fan]` 0.14,
+  `[fan_generic Bed_Fans]` 0.09). Kalico rescales a request onto `min_power..max_power` and treats
+  an old `off_below` as `min_power`, so keeping the numbers would have raised every PWM (slicer 30 %
+  to about 40 %, bed-fan ramp starting at 0.18 instead of 0.10). `0` keeps the old PWM for every
+  request above the old cutoff. A part-fan request under 14 % may now buzz without spinning.
+- **Add-ons were re-linked by copying the symlinks** from `~/klipper_old/klippy/extras/`, not by
+  running installers. Happy Hare's installer rewrites `mmu/` config and upgrades; `~/bd_pressure`
+  must never be pulled. Klippain's `gcode_shell_command.py` link was left out because Kalico ships
+  that module.
+- **Kconfigs are copies in `~/klipper-kconfigs/kalico/`**, run through `olddefconfig`. The mainline
+  originals stay one level up for rollback. No `menuconfig` was needed (CAN UUIDs still from chip
+  id; the Nitehawk's by-id path did not change with "USB product from MCU name" left on).
+- **Moonraker: `[update_manager klipper]` needs `primary_branch: main` as well as `channel: stable`,
+  and the checkout must be on a branch.** A detached tag checkout made Moonraker mark the repo
+  invalid. `~/klipper` is on local `main`, reset to the tag (`git checkout -B main v2026.11.00`).
+**What went wrong:** the Leviathan's flash over CAN failed at the bootloader hand-off and left it
+in Katapult with no `can0`; flashing over the Katapult USB path fixed it (`docs/mmu_can_bus.md` §4).
+**Not needed:** no config-option errors at first start, no `[danger_options]`, no Happy Hare
+update. HH prints its "running on Kalico" warning at startup; that is expected.
+**Two things that looked like regressions and were not:**
+- *Blobifier tray touching the nozzle on the bench.* The Z home had been a cold (22 °C) contact
+  touch and the purge ran at 260 °C. Re-homing at 150 °C (`G28 Z METHOD=CONTACT CALIBRATE=0`, what
+  START_PRINT does) cleared it. A plain `G28` on a homed printer uses proximity, not contact.
+- *An unload and reload right after the prime line.* KlipperScreen's "Check gates" had been
+  pressed during START_PRINT; it queued and ran when START_PRINT ended.
+**Evidence:** maintainer-reported on the machine: `G28`, QGL (0.0066 after 4 passes), bed mesh,
+both fans, a `T0`→`T1` swap at 260 °C, and a 34 min single-colour ABS print that completed with no
+pauses (2026-11-15). Read from the Pi: `ready`, matching firmware versions, `can0` error counters 0.
+**Rollback:** `~/klipper_old`, the mainline kconfigs and `~/kalico-migration-backup` stay until the
+maintainer has run about 5 more prints.
+
 ## 2026-11-13 — Karman moves to Bondtech INDX on plain Kalico; HH v4 series stopped
 **Decision (maintainer):**
 - **The Happy Hare v4 series stops.** Its runbooks (`docs/runbooks/hh-v4-*.md`) will not be

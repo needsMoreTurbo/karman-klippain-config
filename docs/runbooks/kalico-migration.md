@@ -5,7 +5,7 @@ Klippain, Happy Hare v3, the NightOwl, Beacon (contact Z), BDPressure and the UH
 still installed. All four MCUs run Kalico-built firmware. Klipper reaches `ready`, and the
 maintainer reports a clean **single-colour ABS print** plus **one `T0`→`T1` swap**. A tested
 rollback path to mainline is kept until then.
-**Status:** 🟡 not started · **Created:** 2026-11-13
+**Status:** ✅ done 2026-11-15 (rollback files kept until ~5 more prints) · **Created:** 2026-11-13
 **Issue:** td-079c2a
 _Written before task tracking moved to td (2026-11-14). Log progress to this issue (`td log`, then `/ws-done`), and leave this file where it is rather than moving it to `done/`._
 **Prerequisites:**
@@ -370,3 +370,9 @@ backwards-compatible. Record in the status log which gate triggered.
   - HH `5cc88729` pinned on `v3` (10 behind `origin/v3`).
   - `klipper_macro.py check --flavor kalico` gave 0 problems in 257 templates.
   - Kalico `v2026.11.00` contains INDX support.
+- **2026-11-14/15** — executed; step-by-step results are in td-079c2a's log, the summary in
+  `docs/decisions.md` 2026-11-14. Deviations from this runbook: no `menuconfig` (the
+  "USB product from MCU name" option was left on and the path did not change); the Leviathan CAN
+  flash failed and was recovered over Katapult USB; `moonraker.conf` also needed
+  `primary_branch: main` and the checkout on a branch; the swap test ran `T0`→`T1` only, the
+  reverse direction was exercised by the acceptance print's START_PRINT.

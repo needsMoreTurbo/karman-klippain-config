@@ -184,10 +184,10 @@ board to its USB bootloader automatically.
 sudo service klipper stop
 cd ~/klipper
 
-make clean && make KCONFIG_CONFIG=$HOME/klipper-kconfigs/erb-can.config
+make clean && make KCONFIG_CONFIG=$HOME/klipper-kconfigs/kalico/erb-can.config
 ~/katapult-env/bin/python3 ~/katapult/scripts/flashtool.py -i can0 -u f2d9c8c4f555 -f ~/klipper/out/klipper.bin
 
-make clean && make KCONFIG_CONFIG=$HOME/klipper-kconfigs/leviathan-canbridge.config
+make clean && make KCONFIG_CONFIG=$HOME/klipper-kconfigs/kalico/leviathan-canbridge.config
 ~/katapult-env/bin/python3 ~/katapult/scripts/flashtool.py -i can0 -u 30fdcd6e3150 -f ~/klipper/out/klipper.bin
 
 # Nitehawk is unchanged (USB, nitehawk-v2.config, flashtool -d /dev/serial/by-id/usb-Klipper_stm32g0b1xx_…)
@@ -195,6 +195,13 @@ sudo service klipper start
 ```
 - The Makefile runs `olddefconfig` when `src/Kconfig` is newer than a saved config, so new options
   take defaults. Add `menuconfig` with the same `KCONFIG_CONFIG=` to review them.
+- **Kalico (since 2026-11-14):** build from `~/klipper-kconfigs/kalico/`. Those copies went through
+  Kalico's `olddefconfig`; the files in `~/klipper-kconfigs/` are the mainline originals, kept for
+  rollback. No `menuconfig` was needed: the CAN UUIDs still come from the chip id, and "USB product
+  from MCU name" left on gives the Nitehawk the same by-id path as before.
+- **The Leviathan follow-through failed on 2026-11-14** (`Failed to convert can bridge serial number
+  12345 to a uuid`, then `Error sending command [CONNECT]`). The board was left in Katapult and
+  `can0` was gone. Flashing over the Katapult USB path (below, without the `-r` step) fixed it.
 - If the Leviathan flash times out waiting for its bootloader:
   `flashtool.py -i can0 -u 30fdcd6e3150 -r`, find `usb-katapult_stm32h743xx_…` in
   `/dev/serial/by-id/`, then `flashtool.py -d <that path> -f ~/klipper/out/klipper.bin`.

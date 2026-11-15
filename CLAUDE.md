@@ -14,6 +14,10 @@ readlink -e config >/dev/null 2>&1 && echo "MOUNT/on-Pi" || echo "WORKSTATION CL
 
 ## Printer
 - Voron 2.4 (350 mm) named "Karman"; Klippain framework (V2.4 layout).
+- Firmware: **Kalico** `v2026.11.00` (since 2026-11-14), host and all three MCUs; `~/klipper` is the
+  Kalico checkout (local branch `main`, sitting on the release tag). Mainline docs mostly apply, but
+  check Kalico's Config_Reference before assuming a default (e.g. fans use `min_power`, not
+  `off_below`). Add-ons are plain symlinks in `klippy/extras/`, copied by hand, not installed.
 - Beacon probe; Keenovo bed (`[heater_bed] max_power: 0.8`).
 - Toolhead-mounted chamber sensor named `Chamber` — reads warm/noisy, so treat it as a *cap*, not a setpoint. (In the slicer, chamber temp must be **0** on MMU filament profiles or Klippain's chamber soak blocks START_PRINT for up to 15 min.)
 - LDO 5015 under-bed fans (`[fan_generic Bed_Fans]`, pin `PF9`), controlled by the state machine in `bed_fans.cfg` (design of record: `docs/bed_fans_control.md`).
@@ -77,8 +81,11 @@ after motion-file edits.
   bowden and desyncs HH state (details under the layering gotchas below). **Always-on**. Sending
   them via Moonraker is blocked by `.claude/danger-commands.txt`.
 - **Flashing order after a Klipper update** — reflash the ERB first and the Leviathan last.
-  Flashing the bridge drops `can0` and takes the ERB with it (`docs/mmu_can_bus.md` §4).
-  **Conditional**: after any Klipper update or reflash.
+  Flashing the bridge drops `can0` and takes the ERB with it (`docs/mmu_can_bus.md` §4). Build
+  from the kconfigs in `~/klipper-kconfigs/kalico/` (the files one level up are the mainline
+  originals, kept for rollback). The Leviathan's CAN flash can fail at the bootloader hand-off and
+  leave it in Katapult on USB with no `can0`; §4 has the one-line recovery.
+  **Conditional**: after any Kalico update or reflash.
 - **Restarting Klipper mid-print** (`FIRMWARE_RESTART`, a service restart) kills the print. Check
   `print_stats.state` first. **Conditional**: while printing.
 
