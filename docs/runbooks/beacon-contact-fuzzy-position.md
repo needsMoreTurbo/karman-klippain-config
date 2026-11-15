@@ -6,6 +6,8 @@ sheet twice per print. Adopted from RatOS's
 `variable_beacon_contact_start_print_true_zero_fuzzy_position`
 ([RatOS beacon docs](https://os.ratrig.com/docs/configuration/beacon/)).
 **Status:** 🟡 not started
+**Issue:** td-c12419
+_Written before task tracking moved to td (2026-11-14). Wherever this runbook says to update or tick `TODO.md`, update this issue instead (`td log`, then `/ws-done`); and leave this file where it is rather than moving it to `done/`._
 **Created:** 2026-09-04
 **Prerequisites:** printer idle (not mid-print); a bed mesh loaded or creatable; nozzle clean.
 

@@ -5,6 +5,8 @@ with a cheap decision gate: measure the minimum needed to decide whether adaptiv
 for this filament, deliver a constant PA if it isn't, and expand to a full adaptive matrix if it
 is. Deliver the SOP, the refit tooling it needs, and prove it on a real second filament.
 **Status:** not started · **Created:** 2026-08-14
+**Issue:** td-746307
+_Written before task tracking moved to td (2026-11-14). Wherever this runbook says to update or tick `TODO.md`, update this issue instead (`td log`, then `/ws-done`); and leave this file where it is rather than moving it to `done/`._
 **Prerequisites:** BDPressure working (`docs/runbooks/done/bdpressure-pa-sensor.md`); a second
 filament to characterise; ABS results as the regression baseline.
 

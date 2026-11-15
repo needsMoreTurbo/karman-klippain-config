@@ -6,6 +6,8 @@
 of resetting it to 245. This is a Karman-side wrapper in `overrides.cfg`. It works on Happy Hare
 v3 today and carries over unchanged to v4.
 **Status:** 🟡 not started
+**Issue:** td-e44f03
+_Written before task tracking moved to td (2026-11-14). Wherever this runbook says to update or tick `TODO.md`, update this issue instead (`td log`, then `/ws-done`); and leave this file where it is rather than moving it to `done/`._
 **Created:** 2026-10-10
 **Prerequisites:** printer idle for `FIRMWARE_RESTART`. No print needed.
 

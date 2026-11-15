@@ -32,3 +32,6 @@ tools/hh_extract_report.txt
 
 # Stray g-code archives that land in the config dir from Mainsail downloads.
 gcodes-*.zip
+
+# Points td at its task database, which lives on the workstation (see CLAUDE.md). Machine-specific.
+.td-root

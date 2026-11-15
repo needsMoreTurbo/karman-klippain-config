@@ -8,7 +8,7 @@
   risks checked against v4 source.
 
 No v4 code is installed in this runbook.
-**Status:** 🟡 not started
+**Status:** ⛔ cancelled 2026-11-13 — superseded by the INDX migration (`docs/decisions.md` 2026-11-13). Not to be executed.
 **Created:** 2026-10-10
 **Series:** 1 of 3 — next `docs/runbooks/hh-v4-2-install-core.md`, then
 `docs/runbooks/hh-v4-3-blobifier-print.md`.

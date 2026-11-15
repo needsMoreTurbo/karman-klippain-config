@@ -29,7 +29,7 @@ readlink -e config >/dev/null 2>&1 && echo "MOUNT/on-Pi" || echo "WORKSTATION CL
 ## ⚠️ Hazard register
 Klipper has **no obstacle model** and nothing stops a bad command, so this list is the only
 interlock. Survey status: **partial**. Walked with the maintainer on 2026-11-13; the only open item
-is measuring the umbilical/PTFE clearance near Z max (`TODO.md`).
+is measuring the umbilical/PTFE clearance near Z max (td-f10335).
 
 ### Physical keep-out zones (you enforce these)
 Any change to a park position, brush/purge coordinate, macro travel, or slicer bed shape must
@@ -70,7 +70,7 @@ after motion-file edits.
   nobody noticing). Cron gives no alert on failure, so check the latest commit on
   `needsMoreTurbo/karman-klippain-backup` after anything touching `~/config_backup`.
   `save_variables.cfg` (gitignored) is backed up **only** there. **Always-on** until failures alert
-  (`TODO.md`).
+  (td-67a75e).
 
 ### Machine-state traps
 - **`MMU_TEST_FORM_TIP` / hand-cranking with `MMU_TEST_MOVE`** — strands filament in the ~1.45 m
@@ -129,7 +129,7 @@ ssh ernst@192.168.1.240 'tail -3 ~/printer_data/logs/klippy.log'
 ```
 A `.cfg` that is newer than the last Klipper restart is **written only**, not live.
 
-**Verification labels** (also in `.work-system.json`):
+**Verification labels:**
 - **verified in reality**: ran on the printer and the maintainer reported the result.
 - **validated in a proxy**: `visualize_toolchange.py` or `render_macro.py --selftest` passed, but
   the printer has not run it.
@@ -171,21 +171,30 @@ Two frameworks both think they own the toolhead. Facts that are expensive to red
 ## How sessions work here (read this before starting work)
 This project runs on **many short, focused sessions**, not one long chat — long sessions get
 compacted and silently lose detail. Durable knowledge lives in files; the chat is disposable.
-The session skills come from the **`work-system` plugin** (Full tier; config in
-`.work-system.json`).
-- **`/ws-start`** opens a session: pick **architecture** (plan, decide, write runbooks — no config
-  changes), **objective** (execute one runbook), or **debug** (something broke). It runs the SSH
-  probe first.
-- **`/ws-brief <objective>`** (architecture sessions) writes a self-contained runbook to
-  `docs/runbooks/` that a fresh — or cheaper — session can execute without any prior context.
-- **`/ws-decide`** records one `docs/decisions.md` entry at the moment the call is made.
-- **`/ws-done`** closes a session: verifies claims against evidence (git **over SSH** — see
-  *Applying changes*), reports uncommitted/unapplied work, says whether it is safe to stop.
-- **`/ws-check`** read-only drift audit (dead TODO links, stalled runbooks, hazard gaps).
-- Runbook anatomy + what-goes-where: **`docs/runbooks/README.md`**. Maintainer cheat sheet:
-  **`docs/workflow.md`** (point the user there if they ask how any of this works).
-- **`TODO.md` is the index of record** — every runbook is linked from the task it serves.
-  Actionable content lives above its `# 📖 History` divider; nothing actionable below.
+The session skills come from the **`work-system` plugin**.
+- **`/ws-start`** opens a session: **architecture** (plan and decide, no config changes),
+  **objective** (execute one issue), or **debug** (something broke). It runs the SSH probe first.
+- **`/ws-brief <objective>`** writes a runbook to `docs/runbooks/` that a fresh session can execute
+  with no prior context.
+- **`/ws-decide`** records why something is the way it is, at the moment you learn it.
+- **`/ws-done`** closes a session: checks claims against evidence (git **over SSH** — see
+  *Applying changes*) and says whether it is safe to stop.
+- **`/ws-check`** audits this project for drift. Read-only.
+
+Each kind of knowledge has one home:
+- **`td`** — what there is to do and what state it is in. Never keep a task list in a file.
+- **`docs/runbooks/`** — how to do one objective. Progress goes to the td issue, not the runbook.
+- **`docs/decisions.md`** — why. Read it before "fixing" a value that looks wrong.
+- **This file** — durable facts and hazards.
+
+**td in this repo — two things differ from the default.** The task database is **not** in the
+repo: it lives on the workstation at `~/.local/share/td/karman`, and the gitignored `.td-root` file
+points td at it, so SQLite never runs over SSHFS and nothing extra is written to the Pi. Because of
+that, **run `td` from the repo root** (it does not find `.td-root` from a subdirectory), and **do
+not use `td link`** on repo files — it refuses paths outside its root; the `Runbook:` line in the
+issue description is the link. A workstation clone or another machine has no tasks until it gets
+its own `.td-root`. Issues labelled `pre-indx` are tied to hardware the INDX conversion removes;
+close them at phase 3 (td-903a9e).
 
 ## Automation in this repo (`.claude/`)
 - `.claude/settings.json` wires two project hooks (scripts in `tools/hooks/`, both mode-aware
@@ -200,8 +209,9 @@ The session skills come from the **`work-system` plugin** (Full tier; config in
 ## Reference docs (`docs/`)
 `bed_fans_control.md` · `camera_streaming.md` · `custom_macros.md` · `thermal_expansion.md` ·
 `decisions.md` (**why** things are set the way they are — read before "fixing" an odd-looking
-value; add an entry when you make a non-obvious call) · `workflow.md` (maintainer cheat sheet for
-the session/runbook system) · `start_print_walkthrough.md` ·
+value; add an entry when you make a non-obvious call) · `start_print_walkthrough.md` ·
+`hardware_reference.md` (as-configured cutter, Blobifier and brush geometry, and the pin table) ·
+`history.md` (completed work up to 2026-11-14, with how each was verified) ·
 `pa_physics.md` (pressure advance from a strain-gauge sensor — the melt model, how a fit of it goes
 wrong, what the sensor cannot measure, and the calibration protocol; code-level notes live in
 `physics/README.md`) ·
@@ -211,13 +221,13 @@ wrong, what the sensor cannot measure, and the calibration protocol; code-level 
 Katapult/Klipper over CAN, recovery), `mmu_software_hh_vs_afc.md` (why Happy Hare and not AFC, and why
 v4 next), `petg-unload-stall-investigation.md` (open: PETG gear stall on fast unload — mechanism,
 mitigations, next test).
-`issues.md` is the maintainer's raw symptom log; triaged items move to `TODO.md`.
-`TODO.md` holds the build backlog; `docs/runbooks/` the per-objective runbooks; `NOTES.md` is the
-maintainer's scratchpad of hardware measurements.
+`issues.md` is the maintainer's raw symptom log; triaged items become td issues.
+`docs/runbooks/` holds the per-objective runbooks (finished and cancelled ones in `done/`);
+`NOTES.md` is the maintainer's scratchpad of hardware measurements.
 
 ## Git conventions
 - **Conventional Commits**: `type: lowercase subject`, single line. Types in use: `feat`, `docs`, `tools`, `chore`, `fix`.
-- The maintainer runs their own commits/pushes — propose commands + a typed message, don't commit/push unless asked.
+- **Ask before committing or pushing, then run it yourself — never hand the maintainer a command to type.** Propose the commit split and subjects, ask once (commit and push / commit only / leave), and on a yes run it **over SSH on the Pi**, since git must never run from the mount: `ssh ernst@192.168.1.240 'cd ~/printer_data/config && git add <files> && git commit -m "<subject>"'`, then `git push origin main` the same way. If the push is rejected the remote is ahead: stop and say so; do not force, and do not pull without asking.
 - Pull strategy differs on purpose: workstation `pull.rebase true` (interactive), Pi `pull.ff only` (fail-safe for automation).
 
 ## Validating Klipper macros before pushing

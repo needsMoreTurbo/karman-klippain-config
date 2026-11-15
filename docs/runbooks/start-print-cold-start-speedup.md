@@ -5,6 +5,8 @@
 in repo-root files: shorter bed soak, hotend dropped to the contact-safe temperature right after
 the start-of-print MMU unload, and a cooldown that no longer blocks on a fan-less wait to 150 °C.
 **Status:** 🟡 not started
+**Issue:** td-df85f7
+_Written before task tracking moved to td (2026-11-14). Wherever this runbook says to update or tick `TODO.md`, update this issue instead (`td log`, then `/ws-done`); and leave this file where it is rather than moving it to `done/`._
 **Created:** 2026-10-09
 **⚠️ Run order:** execute **after** `docs/runbooks/done/nozzle-ooze-pet-hot-wipe.md` (maintainer, 2026-10-10).
 That runbook adds `karman_hot_wipe_heat` / `karman_hot_wipe_cool` around the first `clean`; its

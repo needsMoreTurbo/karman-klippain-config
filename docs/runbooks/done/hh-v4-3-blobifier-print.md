@@ -9,7 +9,7 @@ did on v3:
 
 Klippain's START_PRINT / END_PRINT, standalone `SWAP` and the Karman macros all work. A
 **2-colour ABS print** passes, and the docs and CLAUDE.md describe v4 instead of v3.
-**Status:** 🟡 not started — blocked on part 2
+**Status:** ⛔ cancelled 2026-11-13 — superseded by the INDX migration (`docs/decisions.md` 2026-11-13). Not to be executed.
 **Created:** 2026-10-10
 **Series:** 3 of 3 — after `docs/runbooks/hh-v4-2-install-core.md`.
 **Prerequisites:**

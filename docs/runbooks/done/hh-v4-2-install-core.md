@@ -8,7 +8,7 @@
 - standalone `T0`↔`T1` swaps **with the Filamatrix cut** work.
 
 **Purge (Blobifier) is not part of this runbook.** It stays off until part 3.
-**Status:** 🟡 not started — blocked on part 1
+**Status:** ⛔ cancelled 2026-11-13 — superseded by the INDX migration (`docs/decisions.md` 2026-11-13). Not to be executed.
 **Created:** 2026-10-10
 **Series:** 2 of 3 — after `docs/runbooks/hh-v4-1-prep.md`, before
 `docs/runbooks/hh-v4-3-blobifier-print.md`.

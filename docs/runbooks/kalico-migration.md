@@ -6,6 +6,8 @@ still installed. All four MCUs run Kalico-built firmware. Klipper reaches `ready
 maintainer reports a clean **single-colour ABS print** plus **one `T0`→`T1` swap**. A tested
 rollback path to mainline is kept until then.
 **Status:** 🟡 not started · **Created:** 2026-11-13
+**Issue:** td-079c2a
+_Written before task tracking moved to td (2026-11-14). Wherever this runbook says to update or tick `TODO.md`, update this issue instead (`td log`, then `/ws-done`); and leave this file where it is rather than moving it to `done/`._
 **Prerequisites:**
 - Printer idle, not printing. A few hours of maintainer time at the machine are available.
 - `git status` on the Pi is clean, and everything is pushed. Check this over SSH (Step 1).
