@@ -6,6 +6,13 @@ for this filament, deliver a constant PA if it isn't, and expand to a full adapt
 is. Deliver the SOP, the refit tooling it needs, and prove it on a real second filament.
 **Status:** not started · **Created:** 2026-08-14
 **Issue:** td-746307
+> **Retooled 2026-11-19 — blocked on td-8dd427.** Sweeps will come from the KAPAT concept
+> (`docs/runbooks/pa-kapat-bdpressure-concept.md`, macro `KARMAN_KAPAT`, UI at `/kapat/`), which
+> removes the ~14.4 mm³/s floor below. Run that first. When this runbook resumes, Step 4 uses
+> `KARMAN_KAPAT VFR=<flow>` instead of `KARMAN_PA_CALIBRATE`. Re-derive the "measurement floor"
+> section from the concept's results rather than trusting it, and take Step 3's operating point
+> from `~/projects/auto-pa-tuning/docs/research/08-phase1-measurements.md` (outer wall is
+> 7–10 mm³/s @ 5000–8000, not 20 @ 3000).
 _Written before task tracking moved to td (2026-11-14). Log progress to this issue (`td log`, then `/ws-done`), and leave this file where it is rather than moving it to `done/`._
 **Prerequisites:** BDPressure working (`docs/runbooks/done/bdpressure-pa-sensor.md`); a second
 filament to characterise; ABS results as the regression baseline.
