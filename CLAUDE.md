@@ -213,7 +213,11 @@ points td at it, so SQLite never runs over SSHFS and nothing extra is written to
 that, **run `td` from the repo root** (it does not find `.td-root` from a subdirectory), and **do
 not use `td link`** on repo files — it refuses paths outside its root; the `Runbook:` line in the
 issue description is the link. A workstation clone or another machine has no tasks until it gets
-its own `.td-root`. Issues labelled `pre-indx` are tied to hardware the INDX conversion removes;
+its own `.td-root`. **In mount mode, td runs `git status` in the current directory**, and on the
+mount that scan follows the framework symlinks over the network. On 2026-11-19 two td calls hung
+like this and Karman was unreachable for a while. Run td as
+`GIT_DIR=/nonexistent GIT_CEILING_DIRECTORIES=/home timeout 20 td ...`: git fails at once, and td still
+reads its database through `.td-root`. Issues labelled `pre-indx` are tied to hardware the INDX conversion removes;
 close them at phase 3 (td-903a9e).
 
 ## Automation in this repo (`.claude/`)
