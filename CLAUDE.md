@@ -22,6 +22,14 @@ readlink -e config >/dev/null 2>&1 && echo "MOUNT/on-Pi" || echo "WORKSTATION CL
 - Toolhead-mounted chamber sensor named `Chamber` — reads warm/noisy, so treat it as a *cap*, not a setpoint. (In the slicer, chamber temp must be **0** on MMU filament profiles or Klippain's chamber soak blocks START_PRINT for up to 15 min.)
 - LDO 5015 under-bed fans (`[fan_generic Bed_Fans]`, pin `PF9`), controlled by the state machine in `bed_fans.cfg` (design of record: `docs/bed_fans_control.md`).
 - Rapido V2 **UHF** hotend + melt-zone extender — long melt zone, so `toolhead_residual_filament` is large (~25 mm) and purge volumes run high. Several MMU symptoms trace back to this.
+- Installed nozzle: **0.4 Bondtech CHT BiMetal** (since 2026-11). Its copper body conducts better,
+  so ABS runs **265 °C on the CHT, equal to 275 °C on the hardened-steel nozzle**. The August PA data and
+  the ABS law in `docs/pa_physics.md` were measured on hardened steel.
+- **KAPAT** PA sweeps (pinned `a33957d` in `~/KAPAT`, web UI at `/kapat/`) read the BDPressure
+  through `bdp_load_cell` (`~/auto-pa-tuning/klipper_extras`, symlinked into `klippy/extras`). Run
+  `KARMAN_KAPAT` (in `kapat.cfg`). Use GRID and the bd_pressure composite K; bisect reads about 2× high
+  here (`docs/decisions.md` 2026-11-19). `~/printer_data/kapat/settings.json` must hold the
+  calibration position 175/40/80 (hazard register).
 - Frequent materials: **ABS/ASA** (bed ~105 °C) — chamber/bed thermal behavior matters.
 
 ### MMU (the largest subsystem — most work happens here)
@@ -41,6 +49,11 @@ respect these. Verify with `tools/visualize_toolchange.py`. The `check-toolchang
 after motion-file edits.
 - **Front-left, x<10 / y<17, at ANY Z** — the Filamatrix cutter arm on the toolhead strikes the
   front-left XY idler. Permanent toolhead geometry. **Always-on**: applies to every move.
+- **KAPAT's default calibration position is (0, 0, Z10)**, inside the front-left keep-out. The web
+  page's start button moves there with a straight `G1 F3000` whenever
+  `~/printer_data/kapat/settings.json` lacks `calibX`/`calibY`/`calibZ`. That file holds
+  **175 / 40 / 80**. Never delete it or set other values from the UI. Start sweeps with the toolhead
+  already at that position. **Always-on** while KAPAT is installed.
 - **Back-left, x<~20 / y>~335, below z15** — blobifier tray, shaker arm and the depressor. This is why
   `min_toolchange_z: 15` floors all toolchange travel. **Conditional**: only below z15.
 - **The y_max feature row** (tray ~x2–17, shaker x4, rest x45, brush x53–88) — must be entered in +Y

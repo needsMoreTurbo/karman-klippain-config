@@ -28,6 +28,16 @@ Reference, link don't re-read everything:
 
 Progress is logged to the issue (`td log`), not here. This file is the plan.
 
+> **As-run corrections (2026-11-19 execution, details in `docs/decisions.md` 2026-11-19):**
+> - The test temperature is **265 °C**, not 275. The installed nozzle is now the 0.4 CHT BiMetal,
+>   where 265 °C matches 275 °C on hardened steel. `KARMAN_KAPAT` defaults to 265.
+> - Step 1: stamp samples with `reactor.monotonic()` (CLOCK_MONOTONIC_RAW), **not** `time.monotonic()`.
+> - Step 8: the page never shows the text `bdp_load_cell`. Check `has_load_cell` via Moonraker instead.
+> - Step 10 result: `invert: True`.
+> - The open KAPAT tab sends `M104 S0` after every sweep, so back-to-back runs cold-soak.
+> - BISECT_SECANT completes but reads about 2× high on this sensor (integral-area bias). GRID +
+>   composite is the usable mode.
+
 ## Scope
 
 Shim written and tested offline → KAPAT installed (pinned) with its web UI → shim deployed → safe

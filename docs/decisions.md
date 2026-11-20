@@ -1,3 +1,46 @@
+## 2026-11-19 — KAPAT on the BDPressure via a load-cell shim (concept)
+**Done:** KAPAT (`~/KAPAT`, pinned `a33957d`, unmodified, web UI at `http://192.168.1.240/kapat/`)
+runs its in-air square-wave PA sweep on the BDPressure through `bdp_load_cell`, a host-side shim
+(`~/auto-pa-tuning/klipper_extras/bdp_load_cell.py`, symlinked into `klippy/extras`) that registers
+as Klipper's `load_cell`. Config: `kapat.cfg`, macro `KARMAN_KAPAT`. Runbook:
+`docs/runbooks/pa-kapat-bdpressure-concept.md` (td-8dd427).
+**Why a shim, not a rewrite:** KAPAT only calls `get_collector()`, `start_collecting()`,
+`collect_until()` and `is_started`, so about 400 lines on our side bought a finished UI, history and
+analysis. The cost: the live force chart stays empty (no `load_cell/dump_force`), and the shim and
+`[bdpressure bd_pa]` share the CH340. The shim opens it only while collecting and hands it back in
+endstop mode; never run `KARMAN_PA_CALIBRATE` and a KAPAT sweep at once.
+**Why the wobble, not XY de-energise:** KAPAT has a 0.05 mm Y wobble at accel 1000 built in.
+Acceleration is not a test variable yet. Revisit in td-746307.
+**Why `max_extrude_cross_section: 200`:** the wobble legs carry up to 3.2 mm of filament per
+0.05 mm of Y, which needs about 154 mm². KAPAT refuses to run below it. It only loosens a gcode
+sanity check. Remove it if KAPAT goes.
+**Measured:** 88.0 Hz, clock-fit residual 0.2–0.4 ms rms, 0 unparsed lines. **Sign: `invert: True`**,
+because the raw value falls with extrusion pressure (delta −19.9 against an idle std of 0.3).
+`time_offset` left at 0.
+**Results, ABS at 265 °C on the 0.4 CHT BiMetal** (265 on the CHT matches 275 on hardened steel):
+GRID composite K 0.0349 / 0.0337 / 0.0303, mean **0.0330, σ 0.0024**; vendor `KARMAN_PA_CALIBRATE`
+at 265 °C gave 0.0345 ± 0.0074 (ratio 0.96). The third run started from the web page with no soak.
+It came out lowest.
+**Trap — the timing estimators read about 2× high.** Integral-area (0.065–0.073) and phase-lag
+(0.072–0.076) K disagree with the composite. Phase lag flattens at about 6–9 ms instead of reaching
+zero, which points to a fixed sensor/pipeline delay that those two estimators read as
+under-compensation. **BISECT/BISECT_SECANT use only integral area, so they return about 0.073 on this
+sensor. Use GRID and the bd_pressure composite** until td-746307 tries `time_offset` ≈ −0.0065.
+`integral_area` also makes a step of about 7 units near K 0.045–0.055 in both GRID runs. Not explained yet.
+**Traps found running it:**
+- The KAPAT web page, while a tab is open, sends `M104 S0` and records History when it sees **any**
+  sweep end, including macro-started ones. Back-to-back runs then cold-soak. The page's start button
+  runs only `M109` (no soak), so use `KARMAN_KAPAT` for the first sweep of a session.
+- `action_respond_info` in a macro prints when the template renders, before any of its gcode runs.
+  `KARMAN_KAPAT` printed "done" at the start until its messages moved to `RESPOND`.
+- Kalico's reactor clock is `CLOCK_MONOTONIC_RAW`, Python's `time.monotonic()` is `CLOCK_MONOTONIC`.
+  The shim stamps samples with `reactor.monotonic()`. The runbook's `time.monotonic()` would have put
+  them in the wrong time domain.
+- The web page has no `bdp_load_cell` label anywhere; `load_cell_name` only names the empty chart's
+  subscription. `has_load_cell` (Moonraker query) is the real check.
+- The August PA data, the ABS law (`n` 0.653, `C` 0.1032) and `physics/` are hardened-steel-nozzle
+  results. The CHT's split melt path changes PA too, so don't hold CHT results against them.
+
 ## 2026-11-14 — Karman on Kalico `v2026.11.00` (INDX phase 1)
 **Done:** mainline Klipper `v0.13.0-662` was replaced by Kalico `v2026.11.00` on the unchanged
 hardware (Klippain, Happy Hare v3 at `5cc88729`, Beacon 2.1.0, BDPressure). Host and all three MCUs
