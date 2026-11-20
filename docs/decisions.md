@@ -1,3 +1,25 @@
+## 2026-11-19 — Adaptive PA comes from KARMAN_PA_CALIBRATE, not KAPAT; the law's Qpeak written down
+**Decision:** the adaptive-PA table (flow × accel) is built from vendor `KARMAN_PA_CALIBRATE` sweeps
+by a new web tool (epic td-ee87cd; runbooks `docs/runbooks/pa-web-tool-prototype.md` and
+`pa-web-tool-first-campaign.md`). KAPAT stays installed for auto-PA experiments.
+**Why not KAPAT:** its flow change is a step (0.2 ms ramp on a 0.05 mm wobble), the
+high-acceleration limit, so its `ACCEL` barely varies the test. The vendor macro de-energises X/Y,
+so its virtual pattern runs at the real `ACC_WALL`, which is the axis Orca's table needs.
+**Found while planning — the law's `Qpeak` was never recorded.** `physics/pa_law.json` only says
+"v_burst_peak". Worked out and checked on 2026-11-19:
+`Qpeak = A_fil · E_per_mm · (v_high + K · accel)`, with `v_high = 537 · MAX_VOLUMETRIC / 60` mm/s,
+`A_fil = 2.405`, `E_per_mm = 0.046`. K is on both sides, so predictions iterate. With C 0.1032 and
+n 0.653 it reproduces all 12 cells of `orca_paste_block` (11 exact, one off by 0.0001). The
+toolhead itself is capped at `v_high`; the extra `K·accel` is the extruder's PA-driven peak, and
+that is where acceleration enters the law. Refitting C from the 13 valid rows gives 0.1034
+(linear weights) or 0.1046 (log weights) against the stored 0.1032. The original fitter's weighting
+is unknown.
+**Second finding — sweeps alone barely constrain n.** A free fit of the 13 steel rows gives
+**n = 0.745 ± 0.229**. The 0.653 came from the waveform fit, not the sweeps. So the tool fits with
+a prior n = 0.653 ± 0.10 and needs a wide Qpeak spread, which the low-flow condition provides.
+**Feasibility rule adopted:** `ramp_samples = 8.1·flow/accel × 88 ≥ 1.0`. The lowest valid
+existing sweep was 1.19 (10 mm³/s @ 6000); §4.1's "≥ 2" is shown as a warning, not enforced.
+
 ## 2026-11-19 — KAPAT on the BDPressure via a load-cell shim (concept)
 **Done:** KAPAT (`~/KAPAT`, pinned `a33957d`, unmodified, web UI at `http://192.168.1.240/kapat/`)
 runs its in-air square-wave PA sweep on the BDPressure through `bdp_load_cell`, a host-side shim
