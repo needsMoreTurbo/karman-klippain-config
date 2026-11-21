@@ -30,6 +30,10 @@ readlink -e config >/dev/null 2>&1 && echo "MOUNT/on-Pi" || echo "WORKSTATION CL
   `KARMAN_KAPAT` (in `kapat.cfg`). Use GRID and the bd_pressure composite K; bisect reads about 2× high
   here (`docs/decisions.md` 2026-11-19). `~/printer_data/kapat/settings.json` must hold the
   calibration position 175/40/80 (hazard register).
+- **PA web tool** at `/karman-pa/` (files in `~/karman-pa-web`, source
+  `auto-pa-tuning/web/karman-pa`, deployed by `rsync`). It plans and runs `KARMAN_PA_CALIBRATE` sweeps,
+  fits the PA law and exports an Orca adaptive-PA block. It never applies PA, and stores campaigns in
+  Moonraker's database, namespace `karman_pa`.
 - Frequent materials: **ABS/ASA** (bed ~105 °C) — chamber/bed thermal behavior matters.
 
 ### MMU (the largest subsystem — most work happens here)

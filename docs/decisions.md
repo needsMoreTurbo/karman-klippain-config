@@ -1,3 +1,29 @@
+## 2026-11-21 — PA web tool around KARMAN_PA_CALIBRATE (prototype)
+**Decision:** a static page at `/karman-pa/` (source `auto-pa-tuning/web/karman-pa`, plain ES
+modules, no build step) drives `KARMAN_PA_CALIBRATE` over Moonraker's websocket and keeps campaigns
+in Moonraker's database (namespace `karman_pa`).
+**Why:** no code runs in Klippy, so there's no host restart and no way to shut down a print
+(2026-09-03). A reload or a second browser picks up where the first left off. The page reads the
+result from the console, because the patched module prints it only as text. The model is the law
+and Qpeak in the 2026-11-19 entry below, fitted in log space with an n prior of 0.653 ± 0.10.
+**Choices that look arbitrary:**
+- σ per run = max(reported/2, 0.0020), because the module's error is about 2× conservative (§5.2).
+- Feasibility needs ramp ≥ 1.0 sample (2.0 is only a warning).
+- The baseline is centre → 4 clipped corners → centre. The two centre runs flag drift if they
+  differ by more than 0.008.
+- Spot checks are human-approved, and each one's prediction is stored before it runs.
+- "Tuned" means the grid score is ≤ 0.0015 and the last two spot checks are within 2σ. The tool stops
+  on a miss over 3σ, two consecutive misses over 2σ, or 6 spot checks without reaching "tuned".
+**Two traps found while building it:**
+- Moonraker reads `.` in a database key as a nested path, so campaign keys use a compact timestamp
+  (`20261121T213915Z`).
+- `idle_timeout.state` is not a "Klipper busy" signal on Karman. The always-on `_BED_FAN_TICK` flips
+  it to `Printing` about every 10 s, so the guard ignores it, and recovery after a dropped socket
+  waits for 3 idle readings in a row. The same tick is the lead for td-0020b6.
+**Verified 2026-11-21:** one sweep started from the page (13.23 mm³/s @ 6124, 265 °C, CHT) stored
+0.0389 ± 0.0070, 40/40 points, 45 fresh / 1 skipped. That matches the console line byte for byte,
+and the nozzle target was 0 afterwards.
+
 ## 2026-11-19 — Adaptive PA comes from KARMAN_PA_CALIBRATE, not KAPAT; the law's Qpeak written down
 **Decision:** the adaptive-PA table (flow × accel) is built from vendor `KARMAN_PA_CALIBRATE` sweeps
 by a new web tool (epic td-ee87cd; runbooks `docs/runbooks/pa-web-tool-prototype.md` and

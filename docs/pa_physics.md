@@ -321,6 +321,16 @@ Individual cells are noisy and a 2-D grid of them is mostly noise. But `PA ~ τ 
 where `Q_peak` is the peak volumetric flow during the burst — which rises with *both* nominal flow
 and acceleration. That is one free parameter across the whole grid.
 
+`Q_peak` is defined self-consistently: the toolhead is capped at the sweep's fast speed, and the
+extra peak comes from the extruder's PA term, so K appears on both sides and a prediction iterates
+`K ← C·Q_peak(K)^(n−1)` to a fixed point (written down 2026-11-19; it reproduces the matrix below,
+and the PA web tool in `auto-pa-tuning/web/karman-pa/model.js` implements it):
+
+```
+Q_peak = A_fil · E_per_mm · (v_high + K · accel)
+v_high = 537 · MAX_VOLUMETRIC / 60  mm/s,   A_fil = 2.405 mm²,   E_per_mm = 0.046
+```
+
 On Karman, with **n = 0.653 taken from the waveform fit and never refitted against sweeps**:
 
 ```

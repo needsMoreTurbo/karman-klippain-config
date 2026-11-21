@@ -221,7 +221,7 @@ Required tests and their exact expectations:
 8. `proposeSpot` returns the same point twice for the same input, and never one within 0.15 log
    units of an existing run.
 ```
-cd /home/kyle/projects/auto-pa-tuning/web/karman-pa && node --test test/
+cd /home/kyle/projects/auto-pa-tuning/web/karman-pa && node --test   # Node 24 rejects a directory argument
 ```
 **Gate:** if test 1 fails, the model is wrong, not `pa_law.json`. **Do not continue until it passes.**
 
@@ -340,7 +340,7 @@ Remove the blob.
 
 ## Verification
 
-- [ ] `node --test test/` passes, including test 1 (reproduces the steel-ABS matrix) and the
+- [ ] `node --test` passes, including test 1 (reproduces the steel-ABS matrix) and the
       parser on real console text. *(validated in a proxy)*
 - [ ] `/karman-pa/`, `/kapat/` and `/` all return 200 after the nginx change. *(verified in reality)*
 - [ ] With Moonraker unreachable the page disables every run button; connected, it shows live state
