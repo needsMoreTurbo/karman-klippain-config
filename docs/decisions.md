@@ -1,3 +1,43 @@
+## 2026-11-21 — First PA web campaign: the law does not fit the CHT; campaign halted at the fit gate
+**Finding:** ABS on the 0.4 CHT BiMetal at 265 °C, box flow 7–25 mm³/s × accel 2500–15000
+(the maintainer raised the flow max from the runbook's 21 to 25, the hotend's current limit).
+Campaign `ABS_CHT_265C_20261121T224015Z`, data in `auto-pa-tuning/data/pa-web/2026-11-21_ABS_CHT.json`.
+Six baseline runs and one spot check, all accepted, page = console every time:
+
+| run | flow @ accel | K | ± |
+|---|---|---|---|
+| B1 / B6 centre | 13.23 @ 6124 | 0.0463 / 0.0392 | 0.0118 / 0.0051 |
+| B2 | 7 @ 2500 | 0.0837 | 0.0124 |
+| B3 | 7 @ 4989 (clipped) | 0.0800 | 0.0096 |
+| B4 | 25 @ 2500 | 0.0372 | 0.0067 |
+| B5 | 25 @ 15000 | 0.0285 | 0.0090 |
+| S1 | 25 @ 11128 | 0.0249 | 0.0077 |
+
+Centre drift 0.0071 (< 0.008, passed). The law fit is **χ²/dof 157/5 = 31** (gate: 4), C 0.189,
+n 0.664. The tool's empirical cross-check `ln K = b0 + b1 ln flow + b2 ln accel` fits at about 3, with
+**K ∝ flow^−0.71 · accel^−0.22**, and predicted S1 blind (0.0251 vs 0.0249; the law said 0.0462).
+**Why the law fails:** in `Qpeak = A·E·(v_high + K·accel)` the `K·accel` term is 77–86 % of Qpeak at
+7 mm³/s, so the law can barely tell 7 from 25 mm³/s and over-weights acceleration. The data says
+flow dominates. The steel law (C 0.1032) is close at 25 mm³/s and about 2× low at 7 mm³/s, where the
+steel campaign never measured.
+**Decision:** do not export the Orca block (it comes from the law and is up to ~75 % high at high
+flow). The runbook forbids changing the model mid-campaign, so td-d0324c stays open until research
+(td-effae5) and an architecture session decide between fixing the law's form and exporting the
+empirical model inside the measured box.
+**Tool bugs found:** td-4a829b (Y>300 guard blocks every run after the first, because PA_CALIBRATE
+re-homes XY to X346 Y354; workaround `G1 Y250` at X346), td-02bdbe (no χ² gate before spot checks),
+td-5ac12b (spot-check z uses the χ²-inflated law σ, so a failing law still "passes").
+
+## 2026-11-21 — Hotend PID retuned on the CHT with `TOLERANCE=0.05`
+**Decision:** `[extruder]` PID in `overrides.cfg` is kp 35.205 / ki 8.801 / kd 35.205, from
+`PID_CALIBRATE HEATER=extruder TARGET=265 TOLERANCE=0.05` (was 36.196 / 10.492 / 31.219, pre-CHT).
+**Why the looser tolerance:** Kalico's autotune accepts only when the last 4 relay powers span
+≤ TOLERANCE (default 0.02). On the CHT they kept spanning 0.04–0.08, so the default run hit the
+60-peak cap and ended `pid_calibrate interrupted`. Don't read that error as a hardware fault.
+**Result:** at 265 °C the nozzle holds 264.65–265.52 (was 264.0–267.8 on a 40 s cycle, which made
+every M109 stall about 2 min, td-675cde). Values are hand-edited into `overrides.cfg`, because
+`SAVE_CONFIG` refuses options that an included file already sets.
+
 ## 2026-11-21 — PA web tool around KARMAN_PA_CALIBRATE (prototype)
 **Decision:** a static page at `/karman-pa/` (source `auto-pa-tuning/web/karman-pa`, plain ES
 modules, no build step) drives `KARMAN_PA_CALIBRATE` over Moonraker's websocket and keeps campaigns
